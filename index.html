@@ -159,6 +159,30 @@ details summary{font-weight:600;padding:4px 0}
  .tab.on .ti{filter:drop-shadow(0 0 6px #b07cffaa)}
  main{padding:10px 10px 100px}
  #toast{bottom:88px}
+}
+/* ===== Lista de mazos ===== */
+#deckBtn{flex:1;min-width:0;text-align:left;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--p2)}
+.dk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.dk{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#1c202c,#171a24);border:1px solid var(--b);cursor:pointer;box-shadow:0 6px 20px #0007;transition:transform .15s,border-color .15s,box-shadow .15s}
+.dk:hover{transform:translateY(-4px);border-color:var(--a);box-shadow:0 12px 30px #6f8dff33}
+.dk.cur{border-color:var(--a);box-shadow:0 0 0 2px #6f8dff88,0 8px 24px #0008}
+.dk-art{aspect-ratio:4/3;background:var(--p2);display:flex}
+.dk-art i{flex:1;background-size:cover;background-position:50% 14%;background-repeat:no-repeat;border-right:1px solid #0008}
+.dk-art i:last-child{border-right:0}
+.dk-art i.noart{display:flex;align-items:center;justify-content:center;font-size:46px;background:linear-gradient(135deg,#2a2f55,#3a2a55)}
+.dk-body{padding:10px 12px 12px}
+.dk-name{font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dk-meta{font-size:12px;color:var(--m);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dk-bar{height:6px;border-radius:4px;background:var(--p2);overflow:hidden;margin:8px 0 5px}
+.dk-bar b{display:block;height:100%;background:var(--grad);border-radius:4px}
+.dk .cur-badge{position:absolute;top:8px;left:8px;background:var(--grad);color:#fff;font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;box-shadow:0 2px 8px #0008}
+.dk .ids{position:absolute;top:8px;right:8px;display:flex;gap:2px;background:#000b;padding:3px 6px;border-radius:99px}
+.dk .ids .sym{width:15px;height:15px;margin:0}
+.dk.new{border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:210px;color:var(--m);font-weight:700;box-shadow:none;background:transparent}
+.dk.new:hover{color:var(--t)}
+@media(max-width:899px){
+ .tab .tl{font-size:10px}
+ .dk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 }</style>
 </head>
 <body>
@@ -166,13 +190,15 @@ details summary{font-weight:600;padding:4px 0}
 <header>
  <div class="top">
   <span class="brand" title="Constructor de mazos MTG">⚔️<span class="bt2"> Mazos MTG</span></span>
-  <select id="deckSel" aria-label="Mazo"></select>
+  <select id="deckSel" aria-label="Mazo" style="display:none"></select>
+  <button id="deckBtn" title="Ver todos mis mazos">🃏 Mazo</button>
   <button id="newBtn" class="pri">＋ Nuevo</button>
   <span id="status"></span>
  </div>
 </header>
 <nav class="tabs" aria-label="Secciones">
-  <button class="tab on" data-tab="deck"><span class="ti">🃏</span><span class="tl">Mazo</span></button>
+  <button class="tab on" data-tab="decks"><span class="ti">👑</span><span class="tl">Mazos</span></button>
+  <button class="tab" data-tab="deck"><span class="ti">🃏</span><span class="tl">Editar</span></button>
   <button class="tab" data-tab="search"><span class="ti">🔍</span><span class="tl">Buscar</span></button>
   <button class="tab" data-tab="stats"><span class="ti">📊</span><span class="tl">Análisis</span></button>
   <button class="tab" data-tab="rec"><span class="ti">💡</span><span class="tl">Consejos</span></button>
@@ -184,6 +210,7 @@ details summary{font-weight:600;padding:4px 0}
  <div class="grid2">
   <div class="left"><section class="panel on" id="p-deck"></section></div>
   <div>
+   <section class="panel" id="p-decks"></section>
    <section class="panel" id="p-search">
     <div class="card">
      <input id="q" type="search" placeholder="Nombre de carta… (t:dragon para tipos)" autocomplete="off" style="width:100%">
@@ -413,6 +440,7 @@ function setTab(t){
  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
  if(t==='io')renderExport();
+ if(t==='decks')renderDecks();
  if(t==='rec')loadRec(false);
  if(t==='coll')renderColl();
 }
@@ -487,6 +515,7 @@ function canAdd(d,name,board){
 /* ---------- render: mazo ---------- */
 function renderHeader(){
  const ids=Object.keys(decks).sort((a,b)=>(decks[b].updated||0)-(decks[a].updated||0));
+ const db=$('deckBtn');if(db)db.textContent='🃏 '+(D()?D().name:'Sin mazo');
  $('deckSel').innerHTML=ids.map(i=>`<option value="${i}"${i===cur?' selected':''}>${esc(decks[i].name)}</option>`).join('');
 }
 function thumb(c){const u=imgUrl(c);return `<img class="th" data-act="detail" loading="lazy" alt="" ${u?`src="${u}"`:''}>`}
@@ -788,6 +817,42 @@ function renderStats(){
   ${pr.length?`<div class="res-meta">Más caras</div>${pr.map(x=>`<div class="hrow"><em style="width:auto;flex:1;color:var(--t)">${esc(x.n)}</em>${x.eur.toFixed(2)} €</div>`).join('')}`:''}
   ${co.length?`<div class="res-meta" style="margin-top:8px">Mayor coste de maná</div>${co.map(x=>`<div class="hrow"><em style="width:auto;flex:1;color:var(--t)">${esc(x.n)}</em>${x.cmc}</div>`).join('')}`:''}</div>`;
  p.innerHTML=h;
+}
+
+/* ---------- lista de mazos (portada) ---------- */
+function deckCover(d){
+ const urls=[];
+ for(const n of d.cmd.slice(0,2)){const u=imgUrl(find(n),true);if(u)urls.push(u)}
+ if(!urls.length){const e=d.cards.find(x=>x.b==='main'&&imgUrl(find(x.n),true));if(e)urls.push(imgUrl(find(e.n),true))}
+ return urls;
+}
+function renderDecks(){
+ const p=$('p-decks');if(!p||!p.classList.contains('on'))return;
+ const ids=Object.keys(decks).sort((a,b)=>(decks[b].updated||0)-(decks[a].updated||0));
+ const miss=[];
+ const tiles=ids.map(id=>{
+  const d=decks[id],F=FORMATS[d.format]||FORMATS.libre;
+  const total=d.cards.filter(e=>e.b==='main').reduce((s,e)=>s+e.q,0)+d.cmd.length;
+  const pct=Math.min(100,Math.round(total/F.size*100));
+  for(const n of d.cmd)if(!find(n))miss.push(n);
+  const cover=deckCover(d);
+  const art=cover.length?cover.map(u=>`<i style="background-image:url('${u}')"></i>`).join(''):`<i class="noart">${d.cmd.length?'🃏':'⚔️'}</i>`;
+  const idn=cmdIdentity(d),ord=['W','U','B','R','G'].filter(x=>idn.has(x));
+  const os=ownStats(d),hasColl=Object.keys(coll).length>0;
+  return `<div class="dk${id===cur?' cur':''}" data-id="${id}" data-act="opendeck" title="Abrir ${esc(d.name)}">
+   <div class="dk-art">${art}</div>
+   ${id===cur?'<span class="cur-badge">Abierto</span>':''}
+   ${ord.length?`<span class="ids">${ord.map(x=>symHtml(x)).join('')}</span>`:''}
+   <div class="dk-body"><div class="dk-name">${esc(d.name)}</div>
+    <div class="dk-meta">${esc(F.label)}${d.cmd.length?' · '+esc(d.cmd.map(n=>n.split(',')[0]).join(' + ')):''}</div>
+    <div class="dk-bar"><b style="width:${pct}%"></b></div>
+    <div class="dk-meta">${total}/${F.size} cartas${total===F.size?' ✓':''}${hasColl&&os.tot?` · tengo ${os.have}/${os.tot}`:''}</div></div></div>`;
+ }).join('');
+ p.innerHTML=`<div class="top" style="margin-bottom:12px"><b style="flex:1;font-size:19px">Mis mazos <span class="res-meta">(${ids.length})</span></b><button data-act="newdeck" class="pri">＋ Nuevo mazo</button></div>
+  <div class="dk-grid">${tiles}<div class="dk new" data-act="newdeck"><div style="font-size:38px;line-height:1">＋</div>Nuevo mazo</div></div>
+  <div class="res-meta" style="margin-top:12px">Toca el comandante para abrir el mazo.</div>`;
+ const fresh=miss.filter(n=>!tried.has(n));   // una sola vez por carta (evita bucles)
+ if(fresh.length)ensureOnce(fresh).then(()=>{if(p.classList.contains('on'))renderDecks()});
 }
 
 /* ---------- recomendaciones (EDHREC) ---------- */
@@ -1098,8 +1163,9 @@ function dlExport(){
 }
 
 /* ---------- eventos ---------- */
-function renderAll(){renderHeader();renderDeck();renderStats();renderRec();renderColl();if(lastResults.length)renderResults();if($('p-io').classList.contains('on'))renderExport();renderDetail()}
+function renderAll(){renderHeader();renderDeck();renderStats();renderRec();renderColl();renderDecks();if(lastResults.length)renderResults();if($('p-io').classList.contains('on'))renderExport();renderDetail()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('deckBtn').onclick=()=>setTab('decks');
 $('deckSel').onchange=e=>{cur=e.target.value;lsSet('mtg_cur',cur);renderAll()};
 $('newBtn').onclick=async()=>{
  const n=await ask({title:'Nuevo mazo',input:'',ok:'Crear'});if(n===null)return;
@@ -1124,6 +1190,8 @@ document.addEventListener('click',async e=>{
  const act=b.dataset.act,row=b.closest('[data-n]'),n=row&&row.dataset.n,bd=row&&row.dataset.b;
  const d=D();
  if(act==='close'){detail=null;renderDetail();return}
+ if(act==='opendeck'){const el=b.closest('[data-id]');if(el&&decks[el.dataset.id]){cur=el.dataset.id;lsSet('mtg_cur',cur);renderAll();setTab(mq.matches?'decks':'deck');window.scrollTo(0,0)}return}
+ if(act==='newdeck'){$('newBtn').click();return}
  if(act==='rrefresh'){loadRec(true);return}
  if(act==='rmore'){rec.shown+=30;renderRec();ensureOnce(rec.list.filter(x=>!hasKey(deckKeys(D()),x.name)).sort((x,y)=>rec.sort==='syn'?y.syn-x.syn:y.inc-x.inc).slice(0,rec.shown).map(x=>x.name)).then(renderRec);return}
  if(act==='cmark'){for(const x of needList(d))if(x.have<x.q)setOwn(x.n,x.q);renderAll();toast('Marcadas como que las tienes');return}
@@ -1156,7 +1224,7 @@ document.addEventListener('click',async e=>{
   if(nextB(bd)==='main'){const why=canAdd(d,n,'main');if(why){toast('✋ '+why);return}}
   moveCard(n,bd);if(detail&&detail.n===n)detail.b=nextB(bd)}
  else if(act==='cmd'){setCmd(n);toast(d.cmd.includes(n)?`★ Comandante: ${n}`:'Comandante quitado');if(detail&&detail.n===n&&detail.b==='cmd')detail=null}
- save(cur);renderDeck();renderStats();renderRec();renderColl();drawCollRes();renderDetail();if(act==='cmd'&&lastResults.length)renderResults();
+ save(cur);renderDeck();renderStats();renderRec();renderColl();renderDecks();drawCollRes();renderDetail();if(act==='cmd'&&lastResults.length)renderResults();
 });
 
 /* ---------- acceso con contraseña ---------- */
@@ -1226,7 +1294,7 @@ function lockInit(){
 }
 
 loadCache();loadLocal();ensureDeck();renderAll();
-setTab(mq.matches?'search':'deck');
+setTab('decks');
 lockInit();
 ensureCards(allDeckNames()).then(()=>{persist();renderAll()});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
