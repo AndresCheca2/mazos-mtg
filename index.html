@@ -193,6 +193,12 @@ details summary{font-weight:600;padding:4px 0}
 .tg.on{background:var(--grad);color:#fff;border-color:transparent}.swap{margin:-2px 0 10px 50px;padding:7px 10px;background:#6f8dff14;border:1px dashed #6f8dff66;border-radius:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .swap small{color:var(--m)}
 .swap .n{cursor:pointer}
+@media(min-width:900px){
+ body[data-tab=coll] .left{display:none}
+ body[data-tab=coll] .grid2{grid-template-columns:minmax(0,1fr)}
+ body[data-tab=coll] #p-coll{max-width:900px;margin:0 auto}
+}
+#collDeck details.card summary{cursor:pointer}
 </style>
 </head>
 <body>
@@ -247,7 +253,6 @@ details summary{font-weight:600;padding:4px 0}
     </div>
    </section>
    <section class="panel" id="p-coll">
-    <div id="collDeck"></div>
     <div class="card"><h3 style="margin-top:0">Añadir a mi colección</h3>
      <input id="cq" type="search" placeholder="Buscar una carta que tengo…" autocomplete="off" style="width:100%">
      <div id="collRes"></div>
@@ -255,8 +260,18 @@ details summary{font-weight:600;padding:4px 0}
       <textarea id="collImp" placeholder="1 Sol Ring&#10;4 Lightning Bolt" style="margin-top:6px"></textarea>
       <div class="bt" style="justify-content:flex-start"><button id="collImpBtn" class="pri">Añadir a mi colección</button><span id="collImpMsg" class="res-meta"></span></div></details></div>
     <div class="card"><h3 style="margin-top:0">Mi colección <span id="collCount"></span></h3>
-     <input id="collFilter" type="search" placeholder="Filtrar mi colección…" autocomplete="off" style="width:100%">
+     <input id="collFilter" type="search" placeholder="Buscar por nombre o tipo…" autocomplete="off" style="width:100%">
+     <div class="filters">
+      <select id="cfType"><option value="">Todos los tipos</option><option value="creature">Criatura</option><option value="instant">Instantáneo</option><option value="sorcery">Conjuro</option><option value="artifact">Artefacto</option><option value="enchantment">Encantamiento</option><option value="planeswalker">Planeswalker</option><option value="land">Tierra</option><option value="battle">Batalla</option></select>
+      <select id="cfCmc"><option value="">Cualquier coste</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7+</option></select>
+      <select id="cfUse"><option value="">Todas</option><option value="used">En algún mazo</option><option value="free">Sin usar en ningún mazo</option><option value="dup">Repetidas (2 o más)</option></select>
+      <select id="cfSort"><option value="name">Orden: nombre</option><option value="cmc">Orden: coste de maná</option><option value="price">Orden: precio</option><option value="qty">Orden: cantidad</option></select>
+      <div class="ci full" id="cfCi"></div>
+      <button id="cfView">Ver imágenes</button><button id="cfReset">Limpiar filtros</button>
+     </div>
+     <div id="collInfo" class="res-meta"></div>
      <div id="collList"></div></div>
+   
    </section>
    <section class="panel" id="p-io">
     <div class="card">
@@ -456,6 +471,7 @@ function ask({title,text='',input=null,ok='Aceptar',type='text'}){
  });
 }
 function setTab(t){
+ document.body.dataset.tab=t;
  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
  if(t==='io')renderExport();
@@ -569,6 +585,7 @@ function renderDeck(){
    <span class="chip ${ck.v.legal?'bad':'ok'}">${ck.v.legal?'✗':'✓'} Legales</span></div>`:''}
   ${ck.w.slice(0,12).map(x=>`<div class="warn">⚠ ${esc(x)}</div>`).join('')}${ck.w.length>12?`<div class="warn">…y ${ck.w.length-12} avisos más</div>`:''}
  </div>`;
+ h+='<div id="collDeck"></div>';
  if(d.format==='commander'){
   h+=`<div class="card"><h3 style="margin-top:0">Comandante</h3>`;
   if(!d.cmd.length)h+='<div class="res-meta">Pulsa ★ en una carta legendaria para elegirla.</div>';
@@ -591,6 +608,7 @@ function renderDeck(){
   h+=`<div class="card"><h3 style="margin-top:0">${BOARDS[b]} <span>(${g.reduce((a,e)=>a+e.q,0)})</span></h3>${sec(g)}</div>`;
  }
  p.innerHTML=h;
+ renderCollDeck();
 }
 
 /* ---------- búsqueda (API de Scryfall en vivo) ---------- */
@@ -1142,16 +1160,18 @@ function ownBadge(n,q,cls=''){
 function shopText(d){
  return ownStats(d).list.filter(x=>x.q>x.have).sort((a,b)=>a.n.localeCompare(b.n)).map(x=>`${x.q-x.have} ${x.n}`).join('\n');
 }
+let collDeckOpen=false;
+document.addEventListener('toggle',e=>{if(e.target&&e.target.id==='cdet')collDeckOpen=e.target.open},true);
 function renderCollDeck(){
  const box=$('collDeck'),d=D();if(!box)return;
  if(!d){box.innerHTML='';return}
  const s=ownStats(d),miss=s.list.filter(x=>x.q>x.have).sort((a,b)=>a.n.localeCompare(b.n));
- box.innerHTML=`<div class="card"><h3 style="margin-top:0">Mazo actual: ${esc(d.name)}</h3>
+ box.innerHTML=`<details class="card" id="cdet"${collDeckOpen?' open':''}><summary style="font-weight:700">🛒 Cartas que me faltan (${s.miss}) · ≈ ${s.price.toFixed(0)} €</summary>
   <div class="chips"><span class="chip ${s.miss?'bad':'ok'}">Tengo ${s.have}/${s.tot}</span><span class="chip">Me faltan ${s.miss}</span>
   <span class="chip">≈ ${s.price.toFixed(2)} €${s.noPrice?` (+${s.noPrice} sin precio)`:''}</span></div>
   <div class="bt" style="justify-content:flex-start"><button data-act="cmark">Marcar todo como que lo tengo</button><button data-act="cshop"${s.miss?'':' disabled'}>Copiar lista de compra</button></div>
   <div id="shopMsg" class="res-meta">Las tierras básicas no cuentan. Se apuntan por nombre de carta, no por mazo: si usas la misma carta en varios mazos, tendrás que tener las copias de todos.</div>
-  ${miss.length?miss.map(x=>`<div class="row" data-n="${esc(x.n)}">${thumb(x.c)}<div class="nm"><div class="n" data-act="detail">${esc(x.n)}${x.c?`<span class="cost">${pips(x.c.cost)}</span>`:''}</div><small>Faltan ${x.q-x.have}${x.have?` (tienes ${x.have})`:''}${x.c&&x.c.eur?` · ${(x.c.eur*(x.q-x.have)).toFixed(2)} €`:''}</small></div><div class="acts"><button class="sm pri" data-act="owntoggle" title="La tengo">✓ La tengo</button></div></div>`).join(''):'<div class="res-meta">¡Tienes todas las cartas de este mazo!</div>'}</div>`;
+  ${miss.length?miss.map(x=>`<div class="row" data-n="${esc(x.n)}">${thumb(x.c)}<div class="nm"><div class="n" data-act="detail">${esc(x.n)}${x.c?`<span class="cost">${pips(x.c.cost)}</span>`:''}</div><small>Faltan ${x.q-x.have}${x.have?` (tienes ${x.have})`:''}${x.c&&x.c.eur?` · ${(x.c.eur*(x.q-x.have)).toFixed(2)} €`:''}</small></div><div class="acts"><button class="sm pri" data-act="owntoggle" title="La tengo">✓ La tengo</button></div></div>`).join(''):'<div class="res-meta">¡Tienes todas las cartas de este mazo!</div>'}</details>`;
 }
 let collLast=[];
 function drawCollRes(){
@@ -1170,22 +1190,55 @@ async function collSearch(){
   if(!collLast.length)box.innerHTML='<div class="res-meta">Sin resultados.</div>';else drawCollRes();
  }catch(e){if(seq===cSeq)box.innerHTML='<div class="res-meta">No se pudo consultar Scryfall.</div>'}
 }
+let collView=lsGet('mtg_collview')||'list',collShown=100;
+const cfSel=new Set();
+function deckUse(){
+ const m=new Map();
+ for(const d of Object.values(decks)){const s=new Set(d.cmd);for(const e of d.cards)if(e.b!=='maybe')s.add(e.n);for(const n of s)m.set(n,(m.get(n)||0)+1)}
+ return m;
+}
 function renderCollList(){
  const box=$('collList');if(!box)return;
- const f=($('collFilter').value||'').toLowerCase().trim();
- const names=Object.keys(coll).sort((a,b)=>a.localeCompare(b));
- const tot=names.reduce((s,n)=>s+coll[n],0);
- $('collCount').textContent=`(${names.length} cartas, ${tot} copias)`;
- const shown=names.filter(n=>!f||n.toLowerCase().includes(f)).slice(0,200);
- box.innerHTML=shown.map(n=>{const c=find(n);return `<div class="row" data-n="${esc(n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(n)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div></div><div class="q"><button class="sm" data-act="cown-">−</button><b>${coll[n]}</b><button class="sm" data-act="cown+">+</button></div><div class="acts"><button class="sm dng" data-act="crm" title="Quitar de mi colección">✕</button></div></div>`}).join('')||`<div class="empty">${names.length?'Sin coincidencias.':'Tu colección está vacía. Busca una carta arriba, importa una lista o marca cartas desde un mazo.'}</div>`;
- if(names.length>200&&!f)box.insertAdjacentHTML('beforeend','<div class="res-meta">Mostrando 200; usa el filtro para encontrar el resto.</div>');
- const miss=names.filter(n=>!find(n));
- const fresh=miss.filter(n=>!tried.has(n)).slice(0,75);   // solo una vez por carta: si no existe, no reintentar (evita bucle)
+ const terms=($('collFilter').value||'').toLowerCase().split(/\s+/).filter(Boolean);
+ const type=$('cfType').value,cm=$('cfCmc').value,use=$('cfUse').value,sort=$('cfSort').value;
+ const uses=deckUse(),names=Object.keys(coll);
+ const rows=names.map(n=>({n,q:coll[n],c:find(n),u:uses.get(n)||0}));
+ const totCopies=rows.reduce((s,r)=>s+r.q,0),value=rows.reduce((s,r)=>s+(r.c&&r.c.eur?r.c.eur*r.q:0),0);
+ $('collCount').textContent=`(${names.length} cartas distintas · ${totCopies} copias · ≈ ${Math.round(value)} €)`;
+ const filtering=terms.length||type||cm!==''||cfSel.size||use;
+ let list=rows.filter(r=>{
+  const c=r.c;
+  if(terms.length){const hay=(r.n+' '+(c?c.t:'')).toLowerCase();if(!terms.every(t=>hay.includes(t)))return false}
+  if(type&&(!c||!front(c).toLowerCase().includes(type)))return false;
+  if(cm!==''&&(!c||(cm==='7'?c.cmc<7:c.cmc!==+cm)))return false;
+  if(cfSel.size){if(!c)return false;const ids=c.ci===''?['C']:[...c.ci];if(!ids.some(x=>cfSel.has(x)))return false}
+  if(use==='used'&&!r.u)return false;
+  if(use==='free'&&r.u)return false;
+  if(use==='dup'&&r.q<2)return false;
+  return true;
+ });
+ const byName=(a,b)=>a.n.localeCompare(b.n);
+ if(sort==='cmc')list.sort((a,b)=>((a.c?a.c.cmc:99)-(b.c?b.c.cmc:99))||byName(a,b));
+ else if(sort==='price')list.sort((a,b)=>((b.c?b.c.eur:0)-(a.c?a.c.eur:0))||byName(a,b));
+ else if(sort==='qty')list.sort((a,b)=>(b.q-a.q)||byName(a,b));
+ else list.sort(byName);
+ const shown=list.slice(0,collShown);
+ $('collInfo').textContent=names.length?(filtering?`${list.length} de ${names.length} cartas coinciden con los filtros`:`${names.length} cartas`):'';
+ $('cfView').textContent=collView==='grid'?'Ver lista':'Ver imágenes';
+ const rowHtml=r=>`<div class="row" data-n="${esc(r.n)}">${thumb(r.c)}<div class="nm"><div class="n" data-act="detail">${esc(r.n)}${r.c?`<span class="cost">${pips(r.c.cost)}</span>`:''}</div><small>${r.c?esc(r.c.t):''}${r.c&&r.c.eur?` · ${r.c.eur.toFixed(2)} €`:''}${r.u?` · en ${r.u} mazo${r.u===1?'':'s'}`:' · sin usar'}</small></div><div class="q"><button class="sm" data-act="cown-">−</button><b>${r.q}</b><button class="sm" data-act="cown+">+</button></div><div class="acts"><button class="sm dng" data-act="crm" title="Quitar de mi colección">✕</button></div></div>`;
+ const gridHtml=r=>{const u=r.c&&(imgUrl(r.c,true)||imgUrl(r.c));return `<div class="gc" data-n="${esc(r.n)}" data-act="detail"><img loading="lazy" alt="${esc(r.n)}" ${u?`src="${u}"`:''}><span class="qb">${r.q}</span><div class="gn">${esc(r.n)}</div></div>`};
+ let h;
+ if(!names.length)h='<div class="empty">Tu colección está vacía. Busca una carta arriba, importa una lista o márcalas desde un mazo.</div>';
+ else if(!list.length)h='<div class="empty">Ninguna carta coincide con los filtros.</div>';
+ else h=collView==='grid'?`<div class="grid">${shown.map(gridHtml).join('')}</div>`:shown.map(rowHtml).join('');
+ if(list.length>shown.length)h+=`<button data-act="collmore" style="width:100%;margin-top:10px">Mostrar más (${list.length-shown.length} restantes)</button>`;
+ box.innerHTML=h;
+ const fresh=names.filter(n=>!find(n)&&!tried.has(n)).slice(0,75);   // una sola vez por carta (evita bucles)
  if(fresh.length)ensureOnce(fresh).then(()=>{if($('p-coll').classList.contains('on'))renderCollList()});
 }
 function renderColl(){
  const p=$('p-coll');if(!p||!p.classList.contains('on'))return;
- renderCollDeck();renderCollList();
+ renderCollList();
 }
 async function collImport(){
  const text=$('collImp').value.trim(),msg=$('collImpMsg');
@@ -1324,7 +1377,13 @@ $('fCi').onclick=e=>{const b=e.target.closest('[data-ci]');if(!b)return;const c=
 $('impBtn').onclick=doImport;
 $('bq').oninput=()=>{clearTimeout(bqT);bqT=setTimeout(bestSearch,350)};
 $('cq').oninput=()=>{clearTimeout(cT);cT=setTimeout(collSearch,350)};
-$('collFilter').oninput=renderCollList;
+$('cfCi').innerHTML=['W','U','B','R','G','C'].map(c=>`<button data-cf="${c}" title="${c}">${symHtml(c)}</button>`).join('');
+const cfRender=()=>{collShown=100;renderCollList()};
+$('collFilter').oninput=cfRender;
+['cfType','cfCmc','cfUse','cfSort'].forEach(i=>$(i).onchange=cfRender);
+$('cfCi').onclick=e=>{const b=e.target.closest('[data-cf]');if(!b)return;const c=b.dataset.cf;cfSel.has(c)?cfSel.delete(c):cfSel.add(c);b.classList.toggle('on');cfRender()};
+$('cfView').onclick=()=>{collView=collView==='grid'?'list':'grid';lsSet('mtg_collview',collView);renderCollList()};
+$('cfReset').onclick=()=>{$('collFilter').value='';['cfType','cfCmc','cfUse'].forEach(i=>$(i).value='');$('cfSort').value='name';cfSel.clear();document.querySelectorAll('#cfCi button').forEach(b=>b.classList.remove('on'));cfRender()};
 $('collImpBtn').onclick=collImport;
 $('impFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('impText').value=await f.text();if(!$('impName').value)$('impName').value=f.name.replace(/\.[^.]+$/,'')};
 $('expFmt').onchange=renderExport;$('expCopy').onclick=copyExport;$('expDl').onclick=dlExport;
@@ -1346,6 +1405,7 @@ document.addEventListener('click',async e=>{
  if(act==='bestretry'){best.names.length&&(best.tags.length?loadBestDeck():pickBest(best.names));return}
  if(act==='bestcreate'){bestCreate();return}
  if(act==='bestpick'){if(n){const c=find(n);pickBest([c?c.n:n]);$('bqRes').innerHTML='';$('bq').value=''}return}
+ if(act==='collmore'){collShown+=100;renderCollList();return}
  if(act==='rrefresh'){loadRec(true);return}
  if(act==='rmore'){rec.shown+=30;renderRec();ensureOnce(rec.list.filter(x=>!hasKey(deckKeys(D()),x.name)).sort((x,y)=>rec.sort==='syn'?y.syn-x.syn:y.inc-x.inc).slice(0,rec.shown).map(x=>x.name)).then(renderRec);return}
  if(act==='cmark'){for(const x of needList(d))if(x.have<x.q)setOwn(x.n,x.q);renderAll();toast('Marcadas como que las tienes');return}
