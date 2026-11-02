@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1117">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Constructor de mazos MTG</title>
+<style>
+:root{--bg:#14151a;--p:#1d1f27;--p2:#262935;--b:#353a4a;--t:#e8e9ee;--m:#9aa0b4;--a:#7c9cff;--ok:#4cc38a;--w:#f0b429;--e:#ef5b5b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,select,input,textarea{font:inherit;color:var(--t);background:var(--p2);border:1px solid var(--b);border-radius:8px;padding:8px 10px}
+button{cursor:pointer;min-height:36px}
+button:hover{border-color:var(--a)}
+button.pri{background:var(--a);color:#0b1020;border-color:var(--a);font-weight:600}
+button.dng{color:var(--e)}
+button.sm{padding:2px 8px;min-height:30px}
+input[type=checkbox]{width:auto}
+textarea{width:100%;min-height:200px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--b);padding:8px 10px}
+.top{display:flex;gap:6px;align-items:center}
+.top select{flex:1;min-width:0;font-weight:600}
+#status{font-size:12px;color:var(--m);white-space:nowrap}
+.tabs{display:flex;gap:4px;margin-top:8px;overflow-x:auto}
+.tab{flex:1 0 auto;padding:6px 10px;text-align:center;font-size:13px;white-space:nowrap}
+.tab.on{background:var(--a);color:#0b1020;border-color:var(--a);font-weight:600}
+main{padding:10px;max-width:1300px;margin:0 auto}
+.panel{display:none}.panel.on{display:block}
+.card{background:var(--p);border:1px solid var(--b);border-radius:12px;padding:10px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #2a2d3a}
+.row:last-child{border-bottom:0}
+.th{width:36px;height:50px;border-radius:4px;background:var(--p2) center/cover;flex:none;cursor:pointer;object-fit:cover}
+.q{display:flex;align-items:center;gap:4px;flex:none}
+.q b{min-width:18px;text-align:center}
+.nm{flex:1;min-width:0}
+.nm .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.nm small{color:var(--m);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acts{display:flex;gap:4px;flex:none}
+h3{margin:12px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--m)}
+h3 span{color:var(--t)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{background:var(--p2);border:1px solid var(--b);border-radius:99px;padding:2px 10px;font-size:13px}
+.chip.ok{border-color:var(--ok);color:var(--ok)}.chip.bad{border-color:var(--w);color:var(--w)}
+.warn{color:var(--w);font-size:13px;margin:2px 0}
+.pip{display:inline-block;min-width:16px;height:16px;line-height:16px;border-radius:50%;font-size:10px;font-style:normal;font-weight:700;text-align:center;color:#111;margin-left:1px;padding:0 2px}
+.pW{background:#f6f0cc}.pU{background:#7fb9ee}.pB{background:#9b8f93}.pR{background:#ee8a70}.pG{background:#74c08a}.pC,.pn{background:#cfcfd4}
+.cost{margin-left:6px;white-space:nowrap}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.filters .full{grid-column:1/-1}
+.ci{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.ci button{padding:0;width:36px;min-height:36px;border-radius:50%;background:var(--p2);opacity:.4}
+.ci button.on{opacity:1;outline:2px solid var(--a)}
+label.ck{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--m)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:140px;padding-top:10px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:12px}
+.bar i{display:block;width:100%;background:var(--a);border-radius:4px 4px 0 0;min-height:1px}
+.bar span{color:var(--m)}
+.hrow{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px}
+.hrow i{display:block;height:12px;border-radius:6px;min-width:2px}
+.hrow em{font-style:normal;width:84px;flex:none;color:var(--m)}
+.res-meta{color:var(--m);font-size:12px;margin:6px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.gc{position:relative;cursor:pointer}
+.gc img{width:100%;aspect-ratio:488/680;border-radius:5%;display:block;background:var(--p2)}
+.gc .qb{position:absolute;top:4px;right:4px;background:#000c;border:1px solid var(--b);border-radius:99px;padding:0 7px;font-size:12px;font-weight:700}
+.gc .gn{font-size:11px;color:var(--m);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000c;border:1px solid var(--b);padding:8px 14px;border-radius:99px;font-size:13px;display:none;z-index:40;max-width:90vw}
+.ov{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:30;padding:16px;overflow:auto}
+.box{background:var(--p);border:1px solid var(--b);border-radius:14px;padding:16px;width:100%;max-width:380px}
+#modal input{width:100%;margin:10px 0}
+.bt{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+#detail .box{max-width:340px;text-align:center}
+#detail img:not(.sym){width:100%;border-radius:5%;aspect-ratio:488/680;background:var(--p2)}
+#detail .sym{width:18px;height:18px}
+details summary{cursor:pointer;font-size:14px}
+.own{display:inline-block;margin-left:6px;padding:0 7px;border-radius:99px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;line-height:18px}
+.own.ok{color:var(--ok);border-color:var(--ok)}.own.no{color:var(--e);border-color:var(--e)}.own.part{color:var(--w);border-color:var(--w)}
+.gc .own.ob{position:absolute;top:4px;left:4px;margin:0;background:#000c}
+#hv{position:fixed;z-index:50;display:none;pointer-events:none;width:260px;border-radius:12px;box-shadow:0 8px 30px #000a}
+#hv img{width:100%;border-radius:12px;display:block}
+.sym{width:16px;height:16px;vertical-align:-3px;margin-left:1px}
+.ci .sym{width:28px;height:28px;vertical-align:middle;margin:0}
+body.locked header,body.locked main,body.locked #hv{display:none!important}
+#lock{z-index:100;background:var(--bg)}
+#lock .box{max-width:340px;text-align:center}
+#lock input{width:100%;margin:6px 0}
+#lock h2{margin:0 0 4px}
+.empty{color:var(--m);text-align:center;padding:24px 8px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.grid2>div,.left{min-width:0}
+html,body{max-width:100%;overflow-x:hidden}
+@media(min-width:900px){
+ .grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+ #p-deck{display:block!important}
+ .tab[data-tab=deck]{display:none}
+ .left{position:sticky;top:96px;max-height:calc(100vh - 110px);overflow:auto}
+}
+
+/* ===== Tema visual ===== */
+:root{--a2:#b07cff;--grad:linear-gradient(135deg,#6f8dff,#b07cff);--bg:#0f1117;--p:#181b25;--p2:#222633;--b:#2f3548;--t:#eceef5}
+body{background:radial-gradient(1100px 560px at 8% -10%,#2a1f5a66,transparent),radial-gradient(900px 480px at 100% 0,#16406544,transparent),var(--bg);background-attachment:fixed;min-height:100vh}
+*::-webkit-scrollbar{width:10px;height:10px}*::-webkit-scrollbar-thumb{background:#2f3548;border-radius:8px}*::-webkit-scrollbar-track{background:transparent}
+#topbar{position:sticky;top:0;z-index:5}
+header{position:static;background:#0f1117ee;backdrop-filter:blur(10px);border-bottom:1px solid var(--b);padding:10px 14px}
+.brand{font-weight:800;font-size:18px;letter-spacing:.02em;white-space:nowrap}
+.brand .bt2{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2.brand{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+button,select,input,textarea{border-radius:10px;padding:9px 12px;transition:border-color .15s,box-shadow .15s,transform .1s,background .15s}
+button.sm{padding:2px 9px;border-radius:8px}
+button:hover{transform:translateY(-1px)}
+button:active{transform:none}
+button.pri{background:var(--grad);border:0;color:#fff;font-weight:700;box-shadow:0 4px 14px #6f8dff44}
+button.pri:hover{filter:brightness(1.1)}
+button.dng:hover{background:#ef5b5b18;border-color:var(--e)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--a);box-shadow:0 0 0 3px #7c9cff33}
+.tabs{gap:8px;margin:0;padding:10px 14px;background:#0f1117ee;border-bottom:1px solid var(--b);overflow-x:auto}
+.tab{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;flex:1 0 auto;padding:10px 18px;font-size:14px;font-weight:600;border-radius:12px;background:var(--p2);border:1px solid var(--b);color:var(--m);min-height:44px}
+.tab .ti{font-size:19px;line-height:1}
+.tab:hover{color:var(--t);border-color:var(--a)}
+.tab.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 6px 18px #6f8dff55}
+main{padding:14px}
+.card{background:linear-gradient(180deg,#1c202c,#171a24);border:1px solid var(--b);border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 6px 24px #0006}
+h3{color:var(--t);font-size:13px;letter-spacing:.08em;display:flex;align-items:center;gap:8px;margin:14px 0 6px}
+h3::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--grad);flex:none}
+h3 span{color:var(--m);font-weight:500}
+.row{padding:6px 4px;border-radius:10px;border-bottom:1px solid #262b3b}
+.row:hover{background:#ffffff0a}
+.th{width:42px;height:58px;border-radius:5px;box-shadow:0 2px 8px #000a;transition:transform .15s}
+.th:hover{transform:scale(1.06)}
+.nm .n{font-weight:600}
+.chip{background:var(--p2);padding:3px 12px;font-weight:600}
+.chip.ok{background:#4cc38a1c}.chip.bad{background:#f0b4291c}
+.bar i{background:var(--grad)}
+.hrow i{box-shadow:0 0 0 1px #0004 inset}
+.gc img{box-shadow:0 4px 14px #000a;transition:transform .15s}
+.gc:hover img{transform:translateY(-3px) scale(1.03)}
+.gc .qb{background:var(--grad);border:0;color:#fff}
+.box{border-radius:18px;box-shadow:0 20px 60px #000c}
+.ov{backdrop-filter:blur(4px)}
+#toast{background:#1c202cf2;border:1px solid var(--a);box-shadow:0 8px 24px #000a;padding:10px 18px;font-weight:600}
+.empty{font-size:15px;padding:32px 12px}
+.ci button{background:var(--p2)}
+.ci button.on{outline:2px solid var(--a);box-shadow:0 0 12px #6f8dff66}
+details summary{font-weight:600;padding:4px 0}
+.opi p{margin:10px 0;font-size:15px;line-height:1.6}
+.opi{border-color:#6f8dff66}
+@media(min-width:900px){.left{top:150px;max-height:calc(100vh - 165px)}}
+@media(max-width:899px){
+ .brand .bt2{display:none}
+ .nm .n{white-space:normal;overflow:visible;line-height:1.25}
+ .tabs{position:fixed;left:0;right:0;bottom:0;gap:0;padding:6px 4px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--b);border-bottom:0;z-index:20;overflow:visible;justify-content:space-around;background:#0f1117f5;backdrop-filter:blur(12px)}
+ .tab{flex:1;flex-direction:column;gap:2px;padding:6px 2px;font-size:11px;border:0;background:transparent;border-radius:12px;min-height:54px;min-width:0;color:var(--m)}
+ .tab .ti{font-size:23px}
+ .tab:hover{transform:none}
+ .tab.on{background:#6f8dff24;color:#fff;box-shadow:none}
+ .tab.on .ti{filter:drop-shadow(0 0 6px #b07cffaa)}
+ main{padding:10px 10px 100px}
+ #toast{bottom:88px}
+}</style>
+</head>
+<body>
+<div id="topbar">
+<header>
+ <div class="top">
+  <span class="brand" title="Constructor de mazos MTG">⚔️<span class="bt2"> Mazos MTG</span></span>
+  <select id="deckSel" aria-label="Mazo"></select>
+  <button id="newBtn" class="pri">＋ Nuevo</button>
+  <span id="status"></span>
+ </div>
+</header>
+<nav class="tabs" aria-label="Secciones">
+  <button class="tab on" data-tab="deck"><span class="ti">🃏</span><span class="tl">Mazo</span></button>
+  <button class="tab" data-tab="search"><span class="ti">🔍</span><span class="tl">Buscar</span></button>
+  <button class="tab" data-tab="stats"><span class="ti">📊</span><span class="tl">Análisis</span></button>
+  <button class="tab" data-tab="rec"><span class="ti">💡</span><span class="tl">Consejos</span></button>
+  <button class="tab" data-tab="coll"><span class="ti">📚</span><span class="tl">Colección</span></button>
+  <button class="tab" data-tab="io"><span class="ti">💾</span><span class="tl">Archivo</span></button>
+</nav>
+</div>
+<main>
+ <div class="grid2">
+  <div class="left"><section class="panel on" id="p-deck"></section></div>
+  <div>
+   <section class="panel" id="p-search">
+    <div class="card">
+     <input id="q" type="search" placeholder="Nombre de carta… (t:dragon para tipos)" autocomplete="off" style="width:100%">
+     <div class="filters">
+      <select id="fType"><option value="">Todos los tipos</option><option>Creature</option><option>Instant</option><option>Sorcery</option><option>Artifact</option><option>Enchantment</option><option>Planeswalker</option><option>Land</option><option>Battle</option></select>
+      <select id="fCmc"><option value="">Cualquier coste</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7+</option></select>
+      <div class="ci full" id="fCi"></div>
+      <label class="ck full"><input type="checkbox" id="fCmd" checked> Respetar identidad de color del comandante</label>
+      <label class="ck full"><input type="checkbox" id="fLegal" checked> Solo cartas legales en el formato</label>
+      <select id="target" class="full"><option value="main">Añadir a: Principal</option><option value="side">Añadir a: Banquillo</option><option value="maybe">Añadir a: Candidatas</option></select>
+     </div>
+    </div>
+    <div id="results"></div>
+   </section>
+   <section class="panel" id="p-stats"></section>
+   <section class="panel" id="p-rec"></section>
+   <section class="panel" id="p-coll">
+    <div id="collDeck"></div>
+    <div class="card"><h3 style="margin-top:0">Añadir a mi colección</h3>
+     <input id="cq" type="search" placeholder="Buscar una carta que tengo…" autocomplete="off" style="width:100%">
+     <div id="collRes"></div>
+     <details style="margin-top:8px"><summary>Importar una lista de cartas que ya tengo</summary>
+      <textarea id="collImp" placeholder="1 Sol Ring&#10;4 Lightning Bolt" style="margin-top:6px"></textarea>
+      <div class="bt" style="justify-content:flex-start"><button id="collImpBtn" class="pri">Añadir a mi colección</button><span id="collImpMsg" class="res-meta"></span></div></details></div>
+    <div class="card"><h3 style="margin-top:0">Mi colección <span id="collCount"></span></h3>
+     <input id="collFilter" type="search" placeholder="Filtrar mi colección…" autocomplete="off" style="width:100%">
+     <div id="collList"></div></div>
+   </section>
+   <section class="panel" id="p-io">
+    <div class="card">
+     <h3 style="margin-top:0">Importar</h3>
+     <p class="res-meta">Pega una lista (Moxfield, Archidekt, Arena, MTGO…) o una copia de seguridad JSON, o elige un archivo.</p>
+     <textarea id="impText" placeholder="Commander&#10;1 Atraxa, Praetors' Voice&#10;&#10;Deck&#10;1 Sol Ring&#10;30 Forest"></textarea>
+     <div class="filters">
+      <input type="file" id="impFile" accept=".txt,.json,.dek,.csv,text/plain,application/json" class="full">
+      <select id="impMode" class="full"><option value="new">Crear mazo nuevo</option><option value="add">Añadir al mazo actual</option></select>
+      <input id="impName" class="full" placeholder="Nombre del mazo nuevo (opcional)">
+      <button id="impBtn" class="pri full">Importar</button>
+     </div>
+     <div id="impMsg" class="res-meta"></div>
+    </div>
+    <div class="card">
+     <h3 style="margin-top:0">Exportar</h3>
+     <div class="filters">
+      <select id="expFmt" class="full">
+       <option value="sections">Texto con secciones (Moxfield, Archidekt, Arena)</option>
+       <option value="flat">Lista simple (MTGO, Cardmarket)</option>
+       <option value="json">Copia de seguridad JSON (todos los mazos)</option>
+      </select>
+      <button id="expCopy">Copiar</button>
+      <button id="expDl">Descargar archivo</button>
+     </div>
+     <textarea id="expText" readonly style="margin-top:8px"></textarea>
+     <div id="expMsg" class="res-meta"></div>
+    </div>
+    <div class="card">
+     <h3 style="margin-top:0">Acceso</h3>
+     <div id="lockInfo" class="res-meta"></div>
+     <div class="bt" style="justify-content:flex-start"><button id="lkNow">Bloquear ahora</button><button id="lkSet">Poner o cambiar contraseña</button><button id="lkOff" class="dng">Quitar contraseña</button></div>
+     <div class="res-meta">La contraseña solo tapa la app en este dispositivo: no cifra los datos. Quien tenga acceso a tu navegador y sepa dónde mirar podría leerlos.</div>
+    </div>
+    <p class="res-meta">Datos de cartas e imágenes: <a href="https://scryfall.com" target="_blank" rel="noopener" style="color:var(--a)">Scryfall</a>. Magic: The Gathering es marca de Wizards of the Coast. Los mazos se guardan en este dispositivo: usa la copia JSON para pasarlos a otro.</p>
+   </section>
+  </div>
+ </div>
+</main>
+<div id="toast"></div>
+<div id="modal" class="ov"><div class="box"><b id="mTitle"></b><div id="mText" class="res-meta"></div><input id="mInput"><div class="bt"><button id="mNo">Cancelar</button><button id="mOk" class="pri">Aceptar</button></div></div></div>
+<div id="lock" class="ov"><div class="box">
+ <h2 class="brand" style="font-size:26px">⚔️ Mazos MTG</h2>
+ <div id="lockMsg" class="res-meta"></div>
+ <input id="lockPw" type="password" placeholder="Contraseña" autocomplete="current-password">
+ <input id="lockPw2" type="password" placeholder="Repite la contraseña" autocomplete="new-password" style="display:none">
+ <div id="lockErr" class="warn"></div>
+ <div class="bt" style="justify-content:center"><button id="lockSkip" style="display:none">Ahora no</button><button id="lockGo" class="pri">Entrar</button></div>
+</div></div>
+<div id="detail" class="ov"><div class="box" id="detailBox"></div></div>
+<script>
+"use strict";
+const FORMATS={
+ commander:{label:'Commander',size:100,single:true,flag:'c',api:'commander'},
+ standard:{label:'Standard',size:60,max:4,flag:'s',api:'standard'},
+ modern:{label:'Modern',size:60,max:4,flag:'m',api:'modern'},
+ legacy:{label:'Legacy',size:60,max:4,flag:'l',api:'legacy'},
+ pauper:{label:'Pauper',size:60,max:4,flag:'p',api:'pauper'},
+ libre:{label:'Libre (60 cartas)',size:60,max:4,flag:'',api:''}
+};
+const ANYNUM=new Set(['relentless rats','shadowborn apostle','rat colony','persistent petitioners',"dragon's approach",'slime against humanity','hare apparent','templar knight','seven dwarves','cid, timeless artificer','tiny bones']);
+const BOARDS={main:'Principal',side:'Banquillo',maybe:'Candidatas'};
+const CATS=['Planeswalker','Creature','Instant','Sorcery','Artifact','Enchantment','Battle','Land','Otras'];
+const CATES={Planeswalker:'Planeswalkers',Creature:'Criaturas',Instant:'Instantáneos',Sorcery:'Conjuros',Artifact:'Artefactos',Enchantment:'Encantamientos',Battle:'Batallas',Land:'Tierras',Otras:'Otras'};
+const API='https://api.scryfall.com';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+
+/* ---------- Scryfall: cola de peticiones (máx. ~8/s) ---------- */
+let qchain=Promise.resolve();
+function sf(path,opts){
+ const run=async()=>{
+  const r=await fetch(API+path,opts);
+  await new Promise(s=>setTimeout(s,120));
+  if(r.status===404)return{object:'error',status:404,data:[]};
+  if(!r.ok)throw new Error('Scryfall '+r.status);
+  return r.json();
+ };
+ const p=qchain.then(run,run);qchain=p.catch(()=>{});return p;
+}
+
+/* ---------- caché de cartas ---------- */
+const CC='mtg_cc_v2';
+const CARDS=new Map();           // clave en minúsculas -> carta compacta
+let loading=0;
+function flagsOf(o){
+ const lg=o.legalities||{};let f='';
+ if(lg.commander==='legal')f+='c';if(lg.standard==='legal')f+='s';if(lg.modern==='legal')f+='m';if(lg.pauper==='legal')f+='p';if(lg.legacy==='legal')f+='l';
+ const ot=o.oracle_text||(o.card_faces&&o.card_faces[0]&&o.card_faces[0].oracle_text)||'';
+ if(/can be your commander/.test(ot))f+='k';return f;
+}
+function compact(o){
+ const fc=o.card_faces&&o.card_faces[0],iu=o.image_uris||(fc&&fc.image_uris)||{};
+ const ot=(o.oracle_text!=null?o.oracle_text:(o.card_faces||[]).map(f=>f.oracle_text||'').join('\n')).toLowerCase();
+ const pr=o.prices||{};
+ return{n:o.name,cost:o.mana_cost||(fc&&fc.mana_cost)||'',cmc:o.cmc||0,t:o.type_line||'',ci:(o.color_identity||[]).join(''),f:flagsOf(o),img:(iu.small||'').replace('https://cards.scryfall.io/',''),
+  big:(iu.normal||'').replace('https://cards.scryfall.io/',''),ot,pm:(o.produced_mana||[]).join(''),eur:parseFloat(pr.eur||pr.eur_foil)||0};
+}
+function remember(c){
+ c.l=c.n.toLowerCase();c.tl=c.t.toLowerCase();CARDS.set(c.l,c);
+ const i=c.l.indexOf(' // ');if(i>0){const fr=c.l.slice(0,i);if(!CARDS.has(fr)||CARDS.get(fr).l===c.l)CARDS.set(fr,c)}
+ return c;
+}
+function saveCache(){
+ // Guarda las cartas de tus mazos y las últimas 400 buscadas, para no llenar el almacenamiento.
+ const keep=new Set(allDeckNames().map(n=>{const c=find(n);return c&&c.l}));
+ const seen=new Set(),all=[];
+ for(const c of CARDS.values()){if(!seen.has(c.l)){seen.add(c.l);all.push(c)}}
+ const arr=all.filter(c=>keep.has(c.l)).concat(all.filter(c=>!keep.has(c.l)).slice(-400))
+  .map(c=>[c.n,c.cost,c.cmc,c.t,c.ci,c.f,c.img,c.big,c.ot,c.pm,c.eur]);
+ lsSet(CC,JSON.stringify(arr));
+}
+function loadCache(){
+ try{for(const a of JSON.parse(lsGet(CC)||'[]'))remember({n:a[0],cost:a[1],cmc:a[2],t:a[3],ci:a[4],f:a[5],img:a[6],big:a[7],ot:a[8]||'',pm:a[9]||'',eur:a[10]||0})}catch(e){}
+}
+function find(name){const l=String(name).toLowerCase().trim();return CARDS.get(l)||CARDS.get(l.replace(/\s*\/+\s*/,' // '))||null}
+const front=c=>c.t.split(' // ')[0];
+function cat(c){
+ if(!c)return 'Otras';const t=front(c);
+ for(const k of ['Land','Creature','Planeswalker','Battle','Instant','Sorcery','Artifact','Enchantment'])if(t.includes(k))return k;
+ return 'Otras';
+}
+const isBasic=c=>!!c&&c.t.includes('Basic Land');
+const canCmd=c=>!!c&&((front(c).includes('Legendary')&&front(c).includes('Creature'))||c.f.includes('k'));
+const imgUrl=(c,big)=>c&&(big?c.big:c.img)?'https://cards.scryfall.io/'+(big?c.big:c.img):'';
+/* Símbolos oficiales de Scryfall; si no cargan, se muestra un círculo de color con la letra. */
+function symHtml(s){
+ const code=s.replace(/\//g,'');
+ return `<img class="sym" alt="{${esc(s)}}" title="{${esc(s)}}" data-s="${esc(s)}" src="https://svgs.scryfall.io/card-symbols/${encodeURIComponent(code)}.svg">`;
+}
+function pips(cost){return (cost||'').replace(/\{([^}]+)\}/g,(m,s)=>symHtml(s))}
+document.addEventListener('error',e=>{
+ const t=e.target;
+ if(t&&t.classList&&t.classList.contains('sym')){
+  const s=t.dataset.s||'',k=s[0],cl='WUBRGC'.includes(k)&&s!=='X'?'p'+k:'pn';
+  const i=document.createElement('i');i.className='pip '+cl;i.textContent=s.replace('/','');t.replaceWith(i);
+ }
+},true);
+/* Pide a Scryfall las cartas que falten. Devuelve los nombres no encontrados. */
+async function ensureCards(names){
+ const need=[...new Set(names.filter(n=>n&&!find(n)))];if(!need.length)return[];
+ loading++;setStatus('Cargando cartas…');
+ const notFound=[];
+ try{
+  for(let i=0;i<need.length;i+=75){
+   const chunk=need.slice(i,i+75);
+   const r=await sf('/cards/collection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifiers:chunk.map(name=>({name}))})});
+   for(const o of (r.data||[]))remember(compact(o));
+   for(const nf of (r.not_found||[]))notFound.push(nf.name);
+  }
+  saveCache();setStatus('');
+ }catch(e){setStatus('Sin conexión con Scryfall');}
+ finally{loading--;}
+ return notFound;
+}
+
+/* ---------- estado y almacenamiento ---------- */
+let decks={},cur=null,viewMode=lsGet('mtg_view')||'list';
+const LS='mtg_decks_v1';
+function loadLocal(){
+ try{const o=JSON.parse(lsGet(LS)||'{}');if(o&&typeof o==='object')decks=o}catch(e){}
+ for(const k in decks)if(decks[k].name==='Mi primer mazo')decks[k].name='Mazo nuevo';
+}
+function persist(){lsSet(LS,JSON.stringify(decks))}
+const uid=()=>'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function setStatus(s){$('status').textContent=s}
+function mkDeck(name,format){return{name:name||'Mazo nuevo',format:format||'commander',cmd:[],cards:[],updated:Date.now()}}
+function save(id){const d=decks[id];if(d){d.updated=Date.now();persist()}}
+function removeDeck(id){delete decks[id];persist()}
+function pickCur(){
+ if(!decks[cur]){
+  const s=lsGet('mtg_cur'),ids=Object.keys(decks);
+  cur=decks[s]?s:ids.sort((a,b)=>(decks[b].updated||0)-(decks[a].updated||0))[0]||null;
+ }
+}
+function ensureDeck(){
+ if(!Object.keys(decks).length){const id=uid();decks[id]=mkDeck('Mazo nuevo','commander');cur=id;save(id)}
+ pickCur();
+}
+const D=()=>decks[cur];
+function allDeckNames(){const s=new Set(Object.keys(coll));for(const d of Object.values(decks)){for(const e of d.cards)s.add(e.n);for(const n of d.cmd)s.add(n)}return[...s]}
+
+/* ---------- utilidades UI ---------- */
+let toastT;
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',2200)}
+function ask({title,text='',input=null,ok='Aceptar',type='text'}){
+ return new Promise(res=>{
+  $('mTitle').textContent=title;$('mText').textContent=text;
+  const i=$('mInput');i.type=type;i.style.display=input===null?'none':'block';i.value=input||'';
+  $('mOk').textContent=ok;$('modal').style.display='flex';if(input!==null)setTimeout(()=>i.focus(),50);
+  const done=v=>{$('modal').style.display='none';$('mOk').onclick=$('mNo').onclick=i.onkeydown=null;res(v)};
+  $('mOk').onclick=()=>done(input===null?true:i.value.trim());
+  $('mNo').onclick=()=>done(null);
+  i.onkeydown=e=>{if(e.key==='Enter')$('mOk').click();if(e.key==='Escape')done(null)};
+ });
+}
+function setTab(t){
+ document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+ document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
+ if(t==='io')renderExport();
+ if(t==='rec')loadRec(false);
+ if(t==='coll')renderColl();
+}
+const mq=matchMedia('(min-width:900px)');
+mq.addEventListener('change',()=>{const on=document.querySelector('.tab.on').dataset.tab;if(mq.matches&&on==='deck')setTab('search')});
+
+/* ---------- lógica de mazo ---------- */
+function addCard(name,board,q=1){
+ const d=D();if(!d)return false;
+ const c=find(name),nm=c?c.n:name;
+ const e=d.cards.find(x=>x.n===nm&&x.b===board);
+ if(e)e.q+=q;else d.cards.push({n:nm,q,b:board});
+ return true;
+}
+function setQty(name,board,delta){
+ const d=D();const e=d.cards.find(x=>x.n===name&&x.b===board);if(!e)return;
+ e.q+=delta;if(e.q<=0)d.cards.splice(d.cards.indexOf(e),1);
+}
+const nextB=b=>({main:'side',side:'maybe',maybe:'main'}[b]);
+function moveCard(name,board){
+ const d=D();const e=d.cards.find(x=>x.n===name&&x.b===board);if(!e)return;
+ const nb=nextB(board);
+ d.cards.splice(d.cards.indexOf(e),1);
+ const o=d.cards.find(x=>x.n===name&&x.b===nb);if(o)o.q+=e.q;else d.cards.push({n:name,q:e.q,b:nb});
+}
+function setCmd(name){
+ const d=D(),c=find(name),nm=c?c.n:name;
+ if(d.cmd.includes(nm)){d.cmd=d.cmd.filter(x=>x!==nm);return}
+ if(d.cmd.length>=2)d.cmd.shift();
+ d.cmd.push(nm);
+ const e=d.cards.find(x=>x.n===nm&&x.b==='main');
+ if(e){e.q-=1;if(e.q<=0)d.cards.splice(d.cards.indexOf(e),1)}
+}
+function cmdIdentity(d){const s=new Set();for(const n of d.cmd){const c=find(n);if(c)for(const ch of c.ci)s.add(ch)}return s}
+function checks(d){
+ const F=FORMATS[d.format]||FORMATS.libre,w=[],v={single:0,ci:0,legal:0,cmd:0};let total=0;const cnt={},unk=[];
+ const allowed=cmdIdentity(d);
+ for(const e of d.cards){
+  if(e.b!=='main')continue;total+=e.q;
+  const c=find(e.n);cnt[e.n]=(cnt[e.n]||0)+e.q;
+  if(!c){unk.push(e.n);continue}
+  if(F.flag&&!c.f.includes(F.flag)&&!isBasic(c)){w.push(`${c.n}: no es legal en ${F.label}`);v.legal++}
+  if(F.single&&d.cmd.length&&[...c.ci].some(ch=>!allowed.has(ch))){w.push(`${c.n}: fuera de la identidad de color`);v.ci++}
+ }
+ for(const n of d.cmd){total+=1;const c=find(n);if(c&&!canCmd(c)){w.push(`${c.n}: no puede ser comandante`);v.cmd++}}
+ for(const n in cnt){
+  const c=find(n);if(!c||isBasic(c)||ANYNUM.has(c.l))continue;
+  if(F.single&&cnt[n]>1){w.push(`${c.n}: ${cnt[n]} copias (singleton)`);v.single++}
+  if(F.max&&cnt[n]>F.max)w.push(`${c.n}: ${cnt[n]} copias (máx. ${F.max})`);
+ }
+ if(unk.length&&!loading)w.unshift(`No reconocidas (${unk.length}): ${unk.slice(0,4).join(', ')}${unk.length>4?'…':''}`);
+ if(F.single&&!d.cmd.length)w.unshift('Falta elegir comandante (★)');
+ if(F.single&&total!==F.size)w.unshift(total<F.size?`Faltan ${F.size-total} cartas`:`Sobran ${total-F.size} cartas`);
+ if(!F.single&&total<F.size)w.unshift(`Faltan ${F.size-total} cartas para el mínimo de ${F.size}`);
+ return{total,size:F.size,w,v,unk:unk.length};
+}
+/* Reglas de Commander al añadir a mano: devuelve el motivo de rechazo o null. */
+function canAdd(d,name,board){
+ if(d.format!=='commander'||board!=='main')return null;
+ const c=find(name);
+ const inMain=d.cards.filter(e=>e.b==='main').reduce((a,e)=>a+e.q,0)+d.cmd.length;
+ if(inMain>=FORMATS.commander.size)return 'El mazo ya tiene 100 cartas';
+ if(!c)return null;
+ if(d.cmd.includes(c.n))return 'Esa carta ya es tu comandante';
+ if(!isBasic(c)&&!ANYNUM.has(c.l)&&d.cards.some(e=>e.n===c.n&&e.b==='main'))return 'Ya está en el mazo (solo una copia en Commander)';
+ if(!isBasic(c)&&!c.f.includes('c'))return 'No es legal en Commander';
+ const allowed=cmdIdentity(d);
+ if(d.cmd.length&&[...c.ci].some(ch=>!allowed.has(ch)))return 'Fuera de la identidad de color del comandante';
+ return null;
+}
+
+/* ---------- render: mazo ---------- */
+function renderHeader(){
+ const ids=Object.keys(decks).sort((a,b)=>(decks[b].updated||0)-(decks[a].updated||0));
+ $('deckSel').innerHTML=ids.map(i=>`<option value="${i}"${i===cur?' selected':''}>${esc(decks[i].name)}</option>`).join('');
+}
+function thumb(c){const u=imgUrl(c);return `<img class="th" data-act="detail" loading="lazy" alt="" ${u?`src="${u}"`:''}>`}
+function deckRow(e){
+ const c=find(e.n);
+ const star=canCmd(c)&&D().format==='commander'?`<button class="sm" data-act="cmd" title="Hacer comandante">★</button>`:'';
+ return `<div class="row" data-n="${esc(e.n)}" data-b="${e.b}">${thumb(c)}
+  <div class="q"><button class="sm" data-act="dec">−</button><b>${e.q}</b><button class="sm" data-act="inc">+</button></div>
+  <div class="nm"><div class="n" data-act="detail">${esc(e.n)}${c?`<span class="cost">${pips(c.cost)}</span>`:' <span class="warn">…</span>'}${ownBadge(e.n,e.q)}</div></div>
+  <div class="acts">${star}<button class="sm" data-act="board" title="Mover a ${BOARDS[nextB(e.b)]}">⇄</button><button class="sm dng" data-act="rm">✕</button></div></div>`;
+}
+function gridCard(e){
+ const c=find(e.n),u=imgUrl(c,true)||imgUrl(c);
+ return `<div class="gc" data-n="${esc(e.n)}" data-b="${e.b}" data-act="detail"><img loading="lazy" alt="${esc(e.n)}" ${u?`src="${u}"`:''}><span class="qb">${e.q}</span>${e.b!=='cmd'?ownBadge(e.n,e.q,'ob'):''}<div class="gn">${esc(e.n)}</div></div>`;
+}
+function renderDeck(){
+ const p=$('p-deck'),d=D();
+ if(!d){p.innerHTML='<div class="empty">No hay mazos. Crea uno con “＋ Nuevo”.</div>';return}
+ const F=FORMATS[d.format]||FORMATS.libre,ck=checks(d),G=viewMode==='grid';
+ const sec=g=>G?`<div class="grid">${g.map(gridCard).join('')}</div>`:g.map(deckRow).join('');
+ let h=`<div class="card">
+  <div class="top"><select id="fmtSel">${Object.keys(FORMATS).map(k=>`<option value="${k}"${k===d.format?' selected':''}>${FORMATS[k].label}</option>`).join('')}</select>
+  <button data-act="view" class="sm">${G?'Ver lista':'Ver imágenes'}</button></div>
+  <div class="top" style="margin-top:6px"><button data-act="rename" class="sm">Renombrar</button><button data-act="dup" class="sm">Duplicar</button><button data-act="del" class="sm dng">Borrar</button></div>
+  <div class="chips"><span class="chip ${ck.total===ck.size?'ok':'bad'}">${ck.total}/${ck.size}${F.single?'':'+'}</span>
+  <span class="chip">${d.cards.filter(e=>e.b==='side').reduce((a,e)=>a+e.q,0)} banquillo</span>
+  <span class="chip">${d.cards.filter(e=>e.b==='maybe').reduce((a,e)=>a+e.q,0)} candidatas</span>${(()=>{const o=ownStats(d);return `<span class="chip ${o.miss?'bad':'ok'}" title="Cartas de este mazo que tienes en tu colección">Tengo ${o.have}/${o.tot}</span>`})()}</div>
+  ${F.single?`<div class="chips">
+   <span class="chip ${ck.total===100?'ok':'bad'}">${ck.total===100?'✓':'✗'} 100 cartas</span>
+   <span class="chip ${ck.v.single?'bad':'ok'}">${ck.v.single?'✗':'✓'} Una copia</span>
+   <span class="chip ${d.cmd.length&&!ck.v.ci?'ok':'bad'}">${d.cmd.length&&!ck.v.ci?'✓':'✗'} Colores del comandante</span>
+   <span class="chip ${ck.v.legal?'bad':'ok'}">${ck.v.legal?'✗':'✓'} Legales</span></div>`:''}
+  ${ck.w.slice(0,12).map(x=>`<div class="warn">⚠ ${esc(x)}</div>`).join('')}${ck.w.length>12?`<div class="warn">…y ${ck.w.length-12} avisos más</div>`:''}
+ </div>`;
+ if(d.format==='commander'){
+  h+=`<div class="card"><h3 style="margin-top:0">Comandante</h3>`;
+  if(!d.cmd.length)h+='<div class="res-meta">Pulsa ★ en una carta legendaria para elegirla.</div>';
+  else if(G)h+=`<div class="grid">${d.cmd.map(n=>gridCard({n,q:'★',b:'cmd'})).join('')}</div>`;
+  else h+=d.cmd.map(n=>{const c=find(n);return `<div class="row" data-n="${esc(n)}" data-b="cmd">${thumb(c)}<div class="nm"><div class="n" data-act="detail">★ ${esc(n)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small>${c?esc(c.t):''}</small></div><div class="acts"><button class="sm dng" data-act="cmd">Quitar</button></div></div>`}).join('');
+  h+='</div>';
+ }
+ const main=d.cards.filter(e=>e.b==='main');
+ const groups={};for(const e of main){const k=cat(find(e.n));(groups[k]=groups[k]||[]).push(e)}
+ h+='<div class="card">';
+ if(!main.length)h+='<div class="empty">Mazo vacío. Ve a “Buscar” o importa una lista.</div>';
+ for(const k of CATS){
+  const g=groups[k];if(!g)continue;
+  g.sort((a,b)=>((find(a.n)||{cmc:0}).cmc-(find(b.n)||{cmc:0}).cmc)||a.n.localeCompare(b.n));
+  h+=`<h3>${CATES[k]} <span>(${g.reduce((a,e)=>a+e.q,0)})</span></h3>`+sec(g);
+ }
+ h+='</div>';
+ for(const b of ['side','maybe']){
+  const g=d.cards.filter(e=>e.b===b).sort((x,y)=>x.n.localeCompare(y.n));if(!g.length)continue;
+  h+=`<div class="card"><h3 style="margin-top:0">${BOARDS[b]} <span>(${g.reduce((a,e)=>a+e.q,0)})</span></h3>${sec(g)}</div>`;
+ }
+ p.innerHTML=h;
+}
+
+/* ---------- búsqueda (API de Scryfall en vivo) ---------- */
+const selCi=new Set();
+$('fCi').innerHTML=['W','U','B','R','G','C'].map(c=>`<button data-ci="${c}" title="${c}">${symHtml(c)}</button>`).join('')+'<span class="res-meta">identidad (vacío = todas)</span>';
+let qT,searchSeq=0,lastResults=[],nextPage=null,lastTotal=0;
+function buildQuery(){
+ const d=D(),F=d?FORMATS[d.format]:null;
+ const terms=$('q').value.trim().split(/\s+/).filter(Boolean),type=$('fType').value,cm=$('fCmc').value;
+ const parts=terms.map(t=>t.startsWith('t:')?t:t.replace(/[()"]/g,''));
+ if(type)parts.push('t:'+type.toLowerCase());
+ if(cm!=='')parts.push(cm==='7'?'cmc>=7':'cmc='+cm);
+ if(selCi.size){const l=[...selCi].filter(x=>x!=='C').join('').toLowerCase();parts.push(l?'id<='+l:'id=c')}
+ if($('fCmd').checked&&d&&d.format==='commander'&&d.cmd.length){const l=[...cmdIdentity(d)].join('').toLowerCase();parts.push(l?'id<='+l:'id=c')}
+ if($('fLegal').checked&&F&&F.api)parts.push('legal:'+F.api);
+ return{q:parts.join(' '),empty:!terms.length&&!type&&cm===''&&!selCi.size};
+}
+async function runSearch(more){
+ const box=$('results'),seq=++searchSeq,{q,empty}=buildQuery();
+ if(empty){lastResults=[];box.innerHTML='<div class="empty">Escribe un nombre o usa los filtros.</div>';return}
+ if(!more)box.innerHTML='<div class="empty">Buscando…</div>';
+ try{
+  const r=more?await sf(nextPage.replace(API,'')):await sf('/cards/search?order=name&unique=cards&q='+encodeURIComponent(q));
+  if(seq!==searchSeq)return;
+  const list=(r.data||[]).map(o=>remember(compact(o)));
+  if(more)lastResults=lastResults.concat(list);else{lastResults=list;lastTotal=r.total_cards||list.length}
+  nextPage=r.has_more?r.next_page:null;
+  saveCache();renderResults();
+ }catch(e){if(seq===searchSeq)box.innerHTML='<div class="empty">No se pudo consultar Scryfall. Revisa tu conexión.</div>'}
+}
+function renderResults(){
+ const box=$('results'),d=D(),{empty}=buildQuery();if(empty)return;
+ const first=($('q').value.trim().split(/\s+/)[0]||'').toLowerCase();
+ const list=lastResults.slice().sort((a,b)=>(a.l.startsWith(first)?0:1)-(b.l.startsWith(first)?0:1));
+ box.innerHTML=`<div class="res-meta">${lastTotal.toLocaleString('es')} resultados</div><div class="card">`+
+  (list.map(c=>`<div class="row" data-n="${esc(c.n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(c.n)}<span class="cost">${pips(c.cost)}</span></div><small>${esc(c.t)}${own(c.n)?` · ✓ Tengo ${own(c.n)}`:''}</small></div><div class="acts">${d&&d.format==='commander'&&canCmd(c)?'<button class="sm" data-act="cmd" title="Hacer comandante">★</button>':''}<button class="sm pri" data-act="add">＋</button></div></div>`).join('')||'<div class="empty">Sin resultados.</div>')+
+  (nextPage?'<button id="moreBtn" style="width:100%;margin-top:8px">Cargar más</button>':'')+'</div>';
+}
+function debounceSearch(){clearTimeout(qT);qT=setTimeout(()=>runSearch(false),350)}
+
+/* ---------- detalle de carta ---------- */
+let detail=null;
+function renderDetail(){
+ const ov=$('detail');
+ if(!detail){ov.style.display='none';return}
+ const c=find(detail.n),d=D(),e=detail.b&&detail.b!=='cmd'&&d?d.cards.find(x=>x.n===detail.n&&x.b===detail.b):null;
+ if(detail.b&&detail.b!=='cmd'&&!e){detail=null;ov.style.display='none';return}
+ const u=imgUrl(c,true)||imgUrl(c);
+ let btn='';
+ if(e)btn=`<div class="bt" style="justify-content:center"><button data-act="dec">−</button><b style="align-self:center">${e.q}</b><button data-act="inc">+</button><button data-act="board">⇄ ${BOARDS[nextB(e.b)]}</button>${c&&canCmd(c)&&d.format==='commander'?'<button data-act="cmd">★</button>':''}<button class="dng" data-act="rm">✕</button></div>`;
+ else if(detail.b==='cmd')btn='<div class="bt" style="justify-content:center"><button class="dng" data-act="cmd">Quitar comandante</button></div>';
+ else btn='<div class="bt" style="justify-content:center"><button class="pri" data-act="add">＋ Añadir al mazo</button></div>';
+ const ownRow=isBasic(c)?'':`<div class="bt" style="justify-content:center;align-items:center"><span class="res-meta">Tengo:</span><button data-act="cown-">−</button><b>${own(detail.n)}</b><button data-act="cown+">+</button></div>`;
+ const box=$('detailBox');box.dataset.n=detail.n;box.dataset.b=detail.b||'';
+ box.innerHTML=(u?`<img src="${u}" alt="${esc(detail.n)}">`:'')+`<div style="margin-top:8px"><b>${esc(detail.n)}</b>${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><div class="res-meta">${c?esc(c.t):''}</div>`+btn+ownRow+'<div class="bt" style="justify-content:center"><button data-act="close">Cerrar</button></div>';
+ ov.style.display='flex';
+}
+
+/* ---------- análisis del mazo ---------- */
+const ROLES=[
+ {k:'ramp',label:'Aceleración de maná',min:8,max:14,test:c=>/add (\{[wubrgc]\}|one mana|two mana|an amount of|x mana)|adds? \{[wubrgc]\}|search your library for (a|an|up to \w+) (basic )?(land|forest|island|swamp|mountain|plains)[^.]*cards?|create (a|two|three|\w+) treasure/.test(c.ot)},
+ {k:'draw',label:'Robo de cartas',min:8,max:14,test:c=>/draws? (a|two|three|four|five|x|that many|\w+) cards?|draw cards equal|draw a card/.test(c.ot)},
+ {k:'removal',label:'Remoción puntual',min:6,max:12,test:c=>/(destroy|exile) target (?!player)|deals? \d+ damage to (any target|target creature|target planeswalker)|gets? -\d+\/-\d+|\bfights?\b|return target [^.]* to its owner's hand/.test(c.ot)},
+ {k:'wipe',label:'Barridos',min:1,max:4,test:c=>/(destroy|exile) (all|each) (creature|nonland|permanent|artifact|enchantment)|deals? \d+ damage to each creature|(all|each) creatures? gets? -/.test(c.ot)},
+ {k:'counter',label:'Contrahechizos',min:0,max:8,test:c=>/counter target/.test(c.ot)},
+ {k:'tutor',label:'Buscadores (tutores)',min:0,max:5,test:c=>/search your library for (a|an|up to \w+) (?!(basic )?(land|forest|island|swamp|mountain|plains))[^.]*card/.test(c.ot)},
+ {k:'protect',label:'Protección',min:0,max:99,test:c=>/hexproof|indestructible|protection from|phases? out|can't be countered|\bward\b|regenerate/.test(c.ot)},
+ {k:'recur',label:'Recursión (cementerio)',min:0,max:99,test:c=>/from (your|a) graveyard (to|onto) (the battlefield|your hand)|return [^.]*from (your|a) graveyard/.test(c.ot)},
+ {k:'tokens',label:'Generadores de fichas',min:0,max:99,test:c=>/create (a|an|two|three|four|x|\w+) [^.]*tokens?/.test(c.ot)}
+];
+function analyze(d){
+ const F=FORMATS[d.format]||FORMATS.libre;
+ const a={F,total:0,lands:0,spells:0,sum:0,curve:Array(8).fill(0),pip:{W:0,U:0,B:0,R:0,G:0},src:{W:0,U:0,B:0,R:0,G:0,C:0},types:{},roles:{},tribes:{},price:0,noPrice:0,color:{c0:0,mono:0,multi:0},unk:0,priced:[],costly:[],creatures:0};
+ for(const r of ROLES)a.roles[r.k]=[];
+ const entries=d.cards.filter(e=>e.b==='main').map(e=>({n:e.n,q:e.q}));
+ for(const n of d.cmd)entries.push({n,q:1});
+ for(const e of entries){
+  const c=find(e.n);a.total+=e.q;
+  if(!c){a.unk+=e.q;continue}
+  const k=cat(c),land=k==='Land';
+  a.types[k]=(a.types[k]||0)+e.q;
+  if(c.eur){a.price+=c.eur*e.q;a.priced.push({n:c.n,eur:c.eur})}else a.noPrice+=e.q;
+  for(const ch of (c.pm||''))if(ch in a.src)a.src[ch]+=e.q;
+  if(land){a.lands+=e.q;continue}
+  a.spells+=e.q;a.sum+=c.cmc*e.q;a.curve[Math.min(7,Math.floor(c.cmc))]+=e.q;
+  if(c.cmc>=6)a.costly.push({n:c.n,cmc:c.cmc});
+  for(const m of (c.cost||'').matchAll(/\{([^}]+)\}/g))for(const ch of m[1].split('/'))if(ch in a.pip)a.pip[ch]+=e.q;
+  const nc=c.ci.length;a.color[nc===0?'c0':nc===1?'mono':'multi']+=e.q;
+  for(const r of ROLES)if(r.test(c))a.roles[r.k].push({n:c.n,q:e.q});
+  if(k==='Creature'){a.creatures+=e.q;const st=front(c).split('—')[1];if(st)for(const w of st.trim().split(/\s+/))a.tribes[w]=(a.tribes[w]||0)+e.q}
+ }
+ a.avg=a.spells?a.sum/a.spells:0;
+ return a;
+}
+const cnt=arr=>arr.reduce((s,x)=>s+x.q,0);
+/* ---------- opinión redactada a partir del análisis ---------- */
+const COLN={W:'blanco',U:'azul',B:'negro',R:'rojo',G:'verde'};
+const GUILD={WU:'Azorius',UB:'Dimir',BR:'Rakdos',RG:'Gruul',GW:'Selesnya',WB:'Orzhov',UR:'Izzet',BG:'Golgari',RW:'Boros',GU:'Simic',WUB:'Esper',UBR:'Grixis',BRG:'Jund',RGW:'Naya',GWU:'Bant',WBG:'Abzan',URW:'Jeskai',BGU:'Sultai',RWB:'Mardu',GUR:'Temur'};
+function idName(set){
+ const l=['W','U','B','R','G'].filter(x=>set.has(x));
+ if(!l.length)return 'sin colores';
+ if(l.length===1)return 'mono'+COLN[l[0]];
+ const key=Object.keys(GUILD).find(g=>g.length===l.length&&[...g].every(c=>set.has(c)));
+ if(key)return `${GUILD[key]} (${l.map(x=>COLN[x]).join('-')})`;
+ return l.length===5?'cinco colores':`${l.length} colores`;
+}
+function opinionCard(d,a,ck){
+ const F=a.F,cm=F.single,n=a.total,target=F.size,P=[];
+ const wrap=t=>`<div class="card opi"><h3 style="margin-top:0">Mi opinión del mazo</h3>${t}<div class="res-meta">Texto redactado automáticamente a partir de las cifras de este análisis, sin conexión a ninguna IA: es una lectura orientativa.</div></div>`;
+ if(!n)return wrap('<p>Todavía no hay cartas. Añade algunas y te cuento qué veo.</p>');
+ const ids=cm?cmdIdentity(d):new Set(Object.keys(a.pip).filter(k=>a.pip[k]>0));
+ const rn=k=>cnt(a.roles[k]);
+ // 1) Presentación y estado de construcción
+ let intro=`Es un mazo de ${F.label}${cm&&d.cmd.length?` con ${d.cmd.join(' y ')} al mando`:''}, en ${idName(ids)}.`;
+ if(n<target*0.6)intro+=` Está en plena construcción (${n}/${target} cartas), así que mis conclusiones son provisionales.`;
+ else if(n<target)intro+=` Le faltan ${target-n} carta${target-n===1?'':'s'} para completarse.`;
+ else if(cm&&n>target)intro+=` Se pasa ${n-target} carta${n-target===1?'':'s'} de las ${target} permitidas.`;
+ else intro+=' Tiene el tamaño correcto.';
+ P.push(intro);
+ // 2) Estilo de juego
+ const st=[];
+ const tr=Object.entries(a.tribes).sort((x,y)=>y[1]-x[1])[0];
+ if(tr&&tr[1]>=8)st.push(`tiene un componente tribal claro de ${tr[0]} (${tr[1]} criaturas)`);
+ if(a.spells>20){
+  const share=a.creatures/a.spells;
+  if(share>0.45)st.push('se apoya mucho en criaturas');
+  else if(share<0.15)st.push('apenas usa criaturas y gira alrededor de hechizos y permanentes');
+ }
+ if(rn('tokens')>=6)st.push(`genera fichas con frecuencia (${rn('tokens')} cartas)`);
+ if(rn('recur')>=5)st.push(`recupera recursos del cementerio (${rn('recur')} cartas)`);
+ if(rn('counter')>=5)st.push('juega a la reactiva con contrahechizos');
+ if(rn('ramp')>=12&&a.avg>3.3)st.push('apuesta por acelerar maná hacia amenazas grandes');
+ if(rn('tutor')>=4)st.push(`gana consistencia con buscadores (${rn('tutor')})`);
+ if(a.avg&&a.avg<=2.4&&a.spells>20)st.push(`mantiene una curva muy baja (coste medio ${a.avg.toFixed(2)})`);
+ if(st.length)P.push('Por lo que veo, '+st.join(', ')+'.');
+ else if(a.spells>20)P.push('No destaca un plan muy marcado: es un mazo bastante generalista.');
+ // 3) Puntos fuertes
+ const good=[];
+ const lr=cm?[34,38]:[22,26];
+ if(a.lands>=lr[0]&&a.lands<=lr[1])good.push(`la base de maná (${a.lands} tierras) está bien dimensionada`);
+ const inR=k=>{const r=ROLES.find(x=>x.k===k),m=cm?1:0.6;const c=rn(k);return c>=Math.round(r.min*m)&&c<=Math.round(r.max*m)};
+ const okRoles=['ramp','draw','removal'].filter(inR).map(k=>({ramp:'aceleración',draw:'robo',removal:'remoción'}[k]));
+ if(okRoles.length)good.push(`cubre bien ${okRoles.join(', ')}`);
+ if(a.avg&&a.avg<=3.2&&a.spells>20)good.push(`la curva es manejable (coste medio ${a.avg.toFixed(2)})`);
+ if(ck.w.length===0&&!a.unk&&n>=target)good.push(`cumple todas las reglas de ${F.label}`);
+ if(good.length)P.push('Lo mejor: '+good.slice(0,3).join('; ')+'.');
+ // 4) Puntos débiles, de mayor a menor importancia
+ const bad=[];
+ if(ck.w.length)bad.push({t:`tiene ${ck.w.length} problema${ck.w.length===1?'':'s'} de reglas (revisa la pestaña Mazo)`,a:'corregir primero los avisos de reglas'});
+ if(n>=target*0.6){
+  if(a.lands<lr[0])bad.push({t:`va corto de tierras (${a.lands}; lo habitual es ${lr[0]}–${lr[1]})`,a:`añadir ${lr[0]-a.lands} tierra${lr[0]-a.lands===1?'':'s'} o fuentes de maná`});
+  else if(a.lands>lr[1])bad.push({t:`lleva tierras de más (${a.lands})`,a:`recortar unas ${a.lands-lr[1]} tierras por hechizos`});
+  const defs=[['ramp','aceleración de maná'],['draw','robo de cartas'],['removal','remoción']];
+  for(const [k,label] of defs){const r=ROLES.find(x=>x.k===k),mn=cm?r.min:Math.round(r.min*0.6);
+   if(rn(k)<mn)bad.push({t:`le falta ${label} (${rn(k)}; lo habitual ${mn}+)`,a:`sumar ${mn-rn(k)} carta${mn-rn(k)===1?'':'s'} de ${label}`})}
+  if(cm&&rn('wipe')===0)bad.push({t:'no tiene ningún barrido, así que le costará remontar si se queda atrás',a:'valorar 1 o 2 barridos'});
+  const Ptot=Object.values(a.pip).reduce((x,y)=>x+y,0);
+  for(const ch of Object.keys(a.pip)){if(!a.pip[ch]||!Ptot)continue;const sh=a.pip[ch]/Ptot,need=cm?(sh<0.2?12:sh<0.4?20:26):(sh<0.2?7:sh<0.4?11:14);
+   if(a.src[ch]<need)bad.push({t:`pocas fuentes de maná ${COLN[ch]} (${a.src[ch]} para el ${Math.round(sh*100)}% de los símbolos)`,a:`más tierras o rocas que den ${COLN[ch]}`})}
+  if(a.avg>3.8)bad.push({t:`la curva es alta (coste medio ${a.avg.toFixed(2)})`,a:'bajar el coste medio con más jugadas baratas'});
+  if(a.costly.length>8)bad.push({t:`demasiadas cartas de coste 6 o más (${a.costly.length})`,a:'recortar algunas cartas muy caras'});
+ }
+ if(bad.length)P.push('Lo que más me preocupa: '+bad.slice(0,4).map(x=>x.t).join('; ')+'.');
+ else if(n>=target*0.6)P.push('No veo carencias importantes en las cifras.');
+ // 5) Siguientes pasos
+ if(bad.length)P.push('Yo empezaría por: '+bad.slice(0,3).map((x,i)=>`${i+1}) ${x.a}`).join('; ')+'.');
+ // 6) Extras: combos, colección y precio
+ const ex=[];
+ if(rec.st==='ok'&&d.cmd.length&&rec.key===recKey(d)){
+  const keys=deckKeys(d);const cmb=rec.combos.map(c=>c.names.filter(x=>!hasKey(keys,x)).length);
+  const full=cmb.filter(x=>x===0).length,near=cmb.filter(x=>x===1).length;
+  if(full||near)ex.push(`según EDHREC ya tiene ${full} combo${full===1?'':'s'} completo${full===1?'':'s'} y otros ${near} a una carta de completarse`);
+ }
+ const os=ownStats(d);
+ if(os.tot&&Object.keys(coll).length)ex.push(os.miss?`de tu colección te faltan ${os.miss} de ${os.tot} cartas`:'tienes todas las cartas en tu colección');
+ if(a.price>0)ex.push(`el coste aproximado ronda los ${Math.round(a.price)} €${a.noPrice?' (sin contar cartas sin precio)':''}`);
+ if(ex.length)P.push('Además: '+ex.join('; ')+'.');
+ // 7) Veredicto
+ let v;
+ if(n<target*0.6)v='Es pronto para un veredicto; sigue añadiendo cartas y vuelve a mirar esta pestaña.';
+ else if(!bad.length&&n>=target)v='En conjunto, lo veo listo para jugar.';
+ else if(bad.length<=2)v='En conjunto, está cerca de quedar bien: con esos ajustes lo veo sólido.';
+ else v='En conjunto, tiene buena base pero todavía le queda trabajo antes de funcionar con regularidad.';
+ P.push(v);
+ return wrap(P.map(p=>`<p>${esc(p)}</p>`).join(''));
+}
+function renderStats(){
+ const d=D(),p=$('p-stats');if(!d){p.innerHTML='';return}
+ const a=analyze(d),F=a.F,ck=checks(d),cm=F.single;
+ const col={W:'#f6f0cc',U:'#7fb9ee',B:'#9b8f93',R:'#ee8a70',G:'#74c08a',C:'#cfcfd4'};
+ const tips=[];
+ const tip=(ok,t)=>tips.push(`<div class="${ok?'':'warn'}" style="${ok?'color:var(--ok);font-size:14px;margin:3px 0':'font-size:14px;margin:3px 0'}">${ok?'✓':'⚠'} ${esc(t)}</div>`);
+ // reglas
+ if(ck.w.length===0&&!a.unk)tip(true,`El mazo cumple todas las reglas de ${F.label}.`);
+ else tip(false,`${ck.w.length} aviso(s) de reglas: míralos en la pestaña Mazo.`);
+ const lr=cm?[34,38]:[22,26];
+ if(a.lands<lr[0]||a.lands>lr[1])tip(false,`Tierras: ${a.lands} (lo habitual en ${F.label} es ${lr[0]}–${lr[1]}).`);else tip(true,`Tierras: ${a.lands}, dentro de lo habitual (${lr[0]}–${lr[1]}).`);
+ const rr=ROLES.filter(r=>['ramp','draw','removal','wipe'].includes(r.k));
+ for(const r of rr){const n=cnt(a.roles[r.k]);
+  const mn=cm?r.min:Math.round(r.min*0.6),mx=cm?r.max:Math.round(r.max*0.6);
+  if(!a.spells)break;
+  if(n<mn)tip(false,`Pocas cartas de «${r.label}»: ${n} (lo habitual ${mn}–${mx}).`);
+  else if(n>mx)tip(false,`Muchas cartas de «${r.label}»: ${n} (lo habitual ${mn}–${mx}).`);
+  else tip(true,`${r.label}: ${n}, bien.`)}
+ if(a.spells){if(a.avg>3.8)tip(false,`Curva alta: coste medio ${a.avg.toFixed(2)}.`);else tip(true,`Coste medio ${a.avg.toFixed(2)}, razonable.`)}
+ const P=Object.values(a.pip).reduce((x,y)=>x+y,0);
+ for(const ch of Object.keys(a.pip)){if(!a.pip[ch]||!P)continue;
+  const sh=a.pip[ch]/P,need=cm?(sh<0.2?12:sh<0.4?20:26):(sh<0.2?7:sh<0.4?11:14);
+  if(a.src[ch]<need)tip(false,`Pocas fuentes de ${ch}: ${a.src[ch]} (orientativo ≥ ${need} para el ${Math.round(sh*100)}% de símbolos).`)}
+ if(a.unk)tip(false,`${a.unk} carta(s) aún sin cargar o no reconocidas: el análisis puede ser incompleto.`);
+ const mx=Math.max(1,...a.curve),mp=Math.max(1,...Object.values(a.pip)),mt=Math.max(1,...Object.values(a.types)),ms=Math.max(1,...Object.values(a.src));
+ const hr=(label,v,max,color,extra='')=>`<div class="hrow"><em>${/^[WUBRGC]$/.test(label)?symHtml(label):label}</em><i style="width:${v/max*55}%;background:${color}"></i>${v}${extra}</div>`;
+ let h=opinionCard(d,a,ck)+`<div class="card"><h3 style="margin-top:0">Valoración</h3>${tips.join('')}</div>`;
+ if(cm){
+  const un=n=>d.cards.filter(e=>e.b==='main'&&n(e)).map(e=>e.n);
+  h+=`<div class="card"><h3 style="margin-top:0">Reglas de Commander</h3>
+  <div class="chips"><span class="chip ${a.total===100?'ok':'bad'}">${a.total===100?'✓':'✗'} ${a.total}/100 cartas</span>
+  <span class="chip ${ck.v.single?'bad':'ok'}">${ck.v.single?'✗':'✓'} Una copia de cada carta</span>
+  <span class="chip ${d.cmd.length&&!ck.v.ci?'ok':'bad'}">${d.cmd.length&&!ck.v.ci?'✓':'✗'} Identidad: ${[...cmdIdentity(d)].join('')||'—'}</span>
+  <span class="chip ${ck.v.legal?'bad':'ok'}">${ck.v.legal?'✗':'✓'} Todas legales</span></div></div>`;
+ }
+ h+=`<div class="card"><h3 style="margin-top:0">Resumen</h3><div class="chips">
+  <span class="chip">${a.total} cartas</span><span class="chip">${a.lands} tierras</span><span class="chip">${a.spells} hechizos</span><span class="chip">${a.creatures} criaturas</span>
+  <span class="chip">Coste medio ${a.spells?a.avg.toFixed(2):'–'}</span><span class="chip">${a.costly.length} de coste ≥ 6</span>
+  <span class="chip">Precio ≈ ${a.price.toFixed(2)} €${a.noPrice?` (${a.noPrice} sin precio)`:''}</span></div></div>
+  <div class="card"><h3 style="margin-top:0">Curva de maná (sin tierras)</h3>
+  <div class="bars">${a.curve.map((v,i)=>`<div class="bar"><span>${v}</span><i style="height:${v/mx*100}%"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div></div>
+  <div class="card"><h3 style="margin-top:0">Tipos de carta</h3>${CATS.filter(k=>a.types[k]).map(k=>hr(CATES[k],a.types[k],mt,'var(--a)')).join('')||'<div class="res-meta">Sin cartas.</div>'}</div>
+  <div class="card"><h3 style="margin-top:0">Colores</h3>
+  <div class="res-meta">Símbolos de maná en los costes</div>${Object.keys(a.pip).map(k=>hr(k,a.pip[k],mp,col[k],P?` (${Math.round(a.pip[k]/P*100)}%)`:'')).join('')}
+  <div class="res-meta" style="margin-top:10px">Fuentes de maná (tierras y artefactos que producen ese color)</div>${Object.keys(a.src).map(k=>hr(k,a.src[k],ms,col[k])).join('')}
+  <div class="chips"><span class="chip">Incoloras: ${a.color.c0}</span><span class="chip">Un color: ${a.color.mono}</span><span class="chip">Multicolor: ${a.color.multi}</span></div></div>
+  <div class="card"><h3 style="margin-top:0">Funciones del mazo</h3><div class="res-meta">Detectadas por el texto de las cartas: es una estimación. Las cifras entre paréntesis son lo habitual en Commander.</div>`;
+ for(const r of ROLES){const l=a.roles[r.k],n=cnt(l);
+  const rng=cm&&r.max<99?` (${r.min}–${r.max})`:'';
+  const bad=cm&&r.max<99&&a.spells&&(n<r.min||n>r.max);
+  h+=`<details style="margin:6px 0"><summary><span class="chip ${bad?'bad':''}">${n}</span> ${r.label}${rng}</summary><div class="res-meta">${l.length?l.sort((x,y)=>x.n.localeCompare(y.n)).map(x=>esc(x.n)+(x.q>1?' ×'+x.q:'')).join(' · '):'Ninguna.'}</div></details>`}
+ h+='</div>';
+ const tr=Object.entries(a.tribes).filter(x=>x[1]>=3).sort((x,y)=>y[1]-x[1]).slice(0,6);
+ if(tr.length)h+=`<div class="card"><h3 style="margin-top:0">Tipos de criatura más comunes</h3><div class="chips">${tr.map(x=>`<span class="chip">${esc(x[0])} ×${x[1]}</span>`).join('')}</div></div>`;
+ const pr=a.priced.sort((x,y)=>y.eur-x.eur).slice(0,5),co=a.costly.sort((x,y)=>y.cmc-x.cmc).slice(0,5);
+ if(pr.length||co.length)h+=`<div class="card"><h3 style="margin-top:0">Cartas destacadas</h3>
+  ${pr.length?`<div class="res-meta">Más caras</div>${pr.map(x=>`<div class="hrow"><em style="width:auto;flex:1;color:var(--t)">${esc(x.n)}</em>${x.eur.toFixed(2)} €</div>`).join('')}`:''}
+  ${co.length?`<div class="res-meta" style="margin-top:8px">Mayor coste de maná</div>${co.map(x=>`<div class="hrow"><em style="width:auto;flex:1;color:var(--t)">${esc(x.n)}</em>${x.cmc}</div>`).join('')}`:''}</div>`;
+ p.innerHTML=h;
+}
+
+/* ---------- recomendaciones (EDHREC) ---------- */
+const EDH='https://json.edhrec.com/pages';
+let rec={key:'',st:'idle',list:[],info:new Map(),combos:[],sort:'pop',cat:'all',shown:30};
+const tried=new Set();
+const ensureOnce=names=>{const f=names.filter(n=>n&&!tried.has(n));f.forEach(n=>tried.add(n));return ensureCards(f)};
+function edhSlug(name){return name.split(' // ')[0].normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}
+const recKey=d=>d.cmd.map(edhSlug).sort().join('-');
+function deckKeys(d){
+ const s=new Set();
+ const add=n=>{const c=find(n),l=(c?c.l:String(n).toLowerCase());s.add(l);const i=l.indexOf(' // ');if(i>0)s.add(l.slice(0,i))};
+ for(const e of d.cards)if(e.b==='main')add(e.n);
+ for(const n of d.cmd)add(n);
+ return s;
+}
+const hasKey=(s,n)=>s.has(String(n).toLowerCase());
+async function loadRec(force){
+ const d=D();
+ if(!d||d.format!=='commander'||!d.cmd.length){renderRec();return}
+ const key=recKey(d);
+ if(!force&&rec.key===key&&(rec.st==='ok'||rec.st==='loading')){renderRec();return}
+ rec={key,st:'loading',list:[],info:new Map(),combos:[],sort:rec.sort,cat:'all',shown:30};renderRec();
+ const get=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(String(r.status));return r.json()});
+ const [a,b]=await Promise.allSettled([get(`${EDH}/commanders/${key}.json`),get(`${EDH}/combos/${key}.json`)]);
+ if(rec.key!==key)return;
+ if(a.status!=='fulfilled'){rec.st=String(a.reason&&a.reason.message)==='404'?'nf':'err';renderRec();return}
+ // lista de cartas recomendadas
+ const lists=(a.value.container&&a.value.container.json_dict&&a.value.container.json_dict.cardlists)||[];
+ const m=new Map();
+ for(const L of lists){
+  const typed=L.tag!=='topcards'&&L.tag!=='newcards';
+  for(const v of (L.cardviews||[])){
+   const inc=v.potential_decks?v.num_decks/v.potential_decks:0,cur0=m.get(v.name);
+   if(!cur0)m.set(v.name,{name:v.name,inc,syn:v.synergy||0,cat:typed?L.header:'Otras',slug:v.sanitized||v.slug});
+   else if(typed&&cur0.cat==='Otras')cur0.cat=L.header;
+  }
+ }
+ rec.info=m;rec.list=[...m.values()];
+ // combos
+ if(b.status==='fulfilled'&&b.value){
+  const cl=(b.value.container&&b.value.container.json_dict&&b.value.container.json_dict.cardlists)||[];
+  rec.combos=cl.filter(x=>x.combo&&x.cardviews).map(x=>({names:x.cardviews.map(v=>v.name),results:x.combo.results||[],count:x.combo.count||0,pct:x.combo.percentage||0,bracket:x.combo.comboVote&&x.combo.comboVote.bracket,href:x.href}));
+ }
+ rec.st='ok';renderRec();
+ const keys=deckKeys(d);
+ const want=rec.list.filter(x=>!hasKey(keys,x.name)).sort((x,y)=>y.inc-x.inc).slice(0,40).map(x=>x.name);
+ const near=rec.combos.map(c=>c.names.filter(n=>!hasKey(keys,n))).filter(m=>m.length===1).slice(0,30).map(m=>m[0]);
+ await ensureOnce([...want,...near]);
+ if(rec.key===key)renderRec();
+}
+function cutCandidates(d,a){
+ const out=[],ranges={ramp:[8,14,'aceleración de maná'],draw:[8,14,'robo de cartas'],removal:[6,12,'remoción'],wipe:[1,4,'barridos']};
+ const over={};
+ for(const k in ranges){const n=cnt(a.roles[k]);if(n>ranges[k][1])over[k]={n,max:ranges[k][1],label:ranges[k][2]}}
+ const roleOf=nm=>Object.keys(over).filter(k=>a.roles[k].some(x=>x.n===nm));
+ for(const e of d.cards){
+  if(e.b!=='main')continue;
+  const c=find(e.n);if(!c||isBasic(c))continue;
+  if(cat(c)==='Land'&&a.lands<=38)continue;
+  if(d.cmd.includes(c.n))continue;
+  const info=rec.info.get(c.n)||rec.info.get(front(c).split(' // ')[0]);
+  const inc=info?info.inc:0,reasons=[];let score=(1-inc)*3;
+  if(!info)reasons.push('No está entre las ~250 cartas más usadas con este comandante');
+  else if(inc<0.10)reasons.push(`Solo aparece en el ${Math.round(inc*100)}% de los mazos`);
+  for(const k of roleOf(c.n)){reasons.push(`Tienes ${over[k].n} de «${over[k].label}» (lo habitual ≤ ${over[k].max})`);score+=1}
+  if(c.cmc>=6&&inc<0.25){reasons.push(`Coste alto (${c.cmc})`);score+=0.5}
+  if(inc>=0.35)continue;
+  if(!reasons.length)continue;
+  out.push({n:c.n,score,reasons,inc});
+ }
+ return out.sort((x,y)=>y.score-x.score).slice(0,12);
+}
+function recRow(name,extra,btn=true){
+ const c=find(name);
+ return `<div class="row" data-n="${esc(name)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(name)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small>${extra}</small></div>${btn?'<div class="acts"><button class="sm pri" data-act="radd" title="Añadir al mazo">＋</button><button class="sm" data-act="rmaybe" title="A candidatas">☆</button></div>':''}</div>`;
+}
+function renderRec(){
+ const p=$('p-rec');if(!p||!p.classList.contains('on'))return;
+ const d=D();
+ if(!d||d.format!=='commander'){p.innerHTML='<div class="card empty">Las recomendaciones usan EDHREC y solo sirven para mazos de <b>Commander</b>. Cambia el formato del mazo en la pestaña Mazo.</div>';return}
+ if(!d.cmd.length){p.innerHTML='<div class="card empty">Elige primero un comandante (★) para ver recomendaciones y combos.</div>';return}
+ if(rec.st==='loading'||rec.st==='idle'){p.innerHTML='<div class="card empty">Consultando EDHREC…</div>';return}
+ if(rec.st==='nf'){p.innerHTML=`<div class="card empty">EDHREC no tiene página para este comandante (${esc(d.cmd.join(' + '))}).<br><button data-act="rrefresh" style="margin-top:8px">Reintentar</button></div>`;return}
+ if(rec.st==='err'){p.innerHTML='<div class="card empty">No se pudo consultar EDHREC. Revisa tu conexión.<br><button data-act="rrefresh" style="margin-top:8px">Reintentar</button></div>';return}
+ const keys=deckKeys(d),a=analyze(d);
+ // 1) cortes
+ const cuts=cutCandidates(d,a);
+ // 2) añadidos
+ let adds=rec.list.filter(x=>!hasKey(keys,x.name));
+ const cats=[...new Set(adds.map(x=>x.cat))];
+ if(rec.cat!=='all')adds=adds.filter(x=>x.cat===rec.cat);
+ adds.sort((x,y)=>rec.sort==='syn'?y.syn-x.syn:y.inc-x.inc);
+ const shown=adds.slice(0,rec.shown);
+ // 3) combos
+ const cm=rec.combos.map(c=>({...c,missing:c.names.filter(n=>!hasKey(keys,n))}));
+ const full=cm.filter(c=>c.missing.length===0).sort((x,y)=>y.count-x.count);
+ const near=cm.filter(c=>c.missing.length===1).sort((x,y)=>y.count-x.count).slice(0,15);
+ const comboHtml=(c,miss)=>`<div class="card" style="margin:6px 0;background:var(--p2)"><div style="font-size:14px"><b>${c.names.map(n=>esc(n)).join(' + ')}</b></div>
+  <div class="res-meta">${esc(c.results.join(' · ')||'—')}${c.bracket?` · nivel ${esc(c.bracket)}`:''} · en ${c.count.toLocaleString('es')} mazos${c.href?` · <a style="color:var(--a)" href="https://edhrec.com${esc(c.href)}" target="_blank" rel="noopener">EDHREC</a>`:''}</div>
+  ${miss?`<div class="warn">Te falta: ${c.missing.map(esc).join(', ')}</div>`+recRow(c.missing[0],(()=>{const w=canAdd(d,c.missing[0],'main');return w?esc(w):'Se puede añadir'})()):''}</div>`;
+ let h=`<div class="card"><div class="top"><b style="flex:1">Datos de EDHREC para ${esc(d.cmd.join(' + '))}</b><button class="sm" data-act="rrefresh">Actualizar</button></div>
+  <div class="res-meta">EDHREC es una web independiente: estos datos salen de su servicio no oficial y pueden cambiar. Son orientativos y no tienen en cuenta tu estilo de juego.</div></div>`;
+ h+=`<div class="card"><h3 style="margin-top:0">Cartas que podrías quitar</h3>${cuts.length?cuts.map(x=>{const c=find(x.n);return `<div class="row" data-n="${esc(x.n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(x.n)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small style="white-space:normal">${x.reasons.map(esc).join(' · ')}</small></div><div class="acts"><button class="sm dng" data-act="rcut" title="Quitar del mazo">✕</button></div></div>`}).join(''):'<div class="res-meta">No veo cartas claras que quitar: todo es habitual con este comandante.</div>'}
+  <div class="res-meta">Ordenadas de más a menos sugeridas. Sustitúyelas por cartas de la lista de abajo.</div></div>`;
+ h+=`<div class="card"><h3 style="margin-top:0">Combos completos en tu mazo (${full.length})</h3>${full.length?full.slice(0,15).map(c=>comboHtml(c,false)).join(''):'<div class="res-meta">Tu mazo no tiene ninguno de los combos populares de este comandante.</div>'}</div>`;
+ h+=`<div class="card"><h3 style="margin-top:0">Combos a una carta de completarse (${near.length})</h3>${near.length?near.map(c=>comboHtml(c,true)).join(''):'<div class="res-meta">No hay combos populares a una sola carta.</div>'}</div>`;
+ h+=`<div class="card"><h3 style="margin-top:0">Cartas recomendadas que no tienes (${adds.length})</h3>
+  <div class="filters"><select id="recSort"><option value="pop"${rec.sort==='pop'?' selected':''}>Más populares</option><option value="syn"${rec.sort==='syn'?' selected':''}>Mayor sinergia</option></select>
+  <select id="recCat"><option value="all">Todas las categorías</option>${cats.map(k=>`<option${k===rec.cat?' selected':''}>${esc(k)}</option>`).join('')}</select></div>
+  ${shown.map(x=>recRow(x.name,`${Math.round(x.inc*100)}% de los mazos${x.syn>0.005?` · sinergia +${Math.round(x.syn*100)}%`:''} · ${esc(x.cat)}`)).join('')||'<div class="res-meta">Sin resultados.</div>'}
+  ${adds.length>shown.length?'<button data-act="rmore" style="width:100%;margin-top:8px">Mostrar más</button>':''}</div>`;
+ p.innerHTML=h;
+}
+
+/* ---------- colección (cartas que tengo) ---------- */
+const COLL='mtg_coll_v1';
+let coll={};
+try{const o=JSON.parse(lsGet(COLL)||'{}');if(o&&typeof o==='object')coll=o}catch(e){}
+const own=n=>coll[n]||0;
+function setOwn(n,q){q=Math.max(0,q|0);if(q)coll[n]=q;else delete coll[n];lsSet(COLL,JSON.stringify(coll))}
+/* Cartas que necesita el mazo (principal, banquillo y comandante), sin tierras básicas. */
+function needList(d){
+ const m=new Map(),add=(n,q)=>m.set(n,(m.get(n)||0)+q);
+ for(const e of d.cards)if(e.b!=='maybe')add(e.n,e.q);
+ for(const n of d.cmd)add(n,1);
+ return [...m].map(([n,q])=>({n,q,have:own(n),c:find(n)})).filter(x=>!isBasic(x.c));
+}
+function ownStats(d){
+ const l=needList(d);let tot=0,have=0,price=0,noPrice=0;
+ for(const x of l){tot+=x.q;const h=Math.min(x.q,x.have);have+=h;const miss=x.q-h;if(miss){if(x.c&&x.c.eur)price+=x.c.eur*miss;else noPrice+=miss}}
+ return{list:l,tot,have,miss:tot-have,price,noPrice};
+}
+function ownBadge(n,q,cls=''){
+ const c=find(n);if(isBasic(c))return '';
+ const h=own(n);
+ const k=h>=q?'ok':h>0?'part':'no';
+ return `<span class="own ${k} ${cls}" data-act="owntoggle" title="${h>=q?'La tengo (clic para quitarla)':'Clic para marcarla como que la tengo'}">${h>=q?'✓':h+'/'+q}</span>`;
+}
+function shopText(d){
+ return ownStats(d).list.filter(x=>x.q>x.have).sort((a,b)=>a.n.localeCompare(b.n)).map(x=>`${x.q-x.have} ${x.n}`).join('\n');
+}
+function renderCollDeck(){
+ const box=$('collDeck'),d=D();if(!box)return;
+ if(!d){box.innerHTML='';return}
+ const s=ownStats(d),miss=s.list.filter(x=>x.q>x.have).sort((a,b)=>a.n.localeCompare(b.n));
+ box.innerHTML=`<div class="card"><h3 style="margin-top:0">Mazo actual: ${esc(d.name)}</h3>
+  <div class="chips"><span class="chip ${s.miss?'bad':'ok'}">Tengo ${s.have}/${s.tot}</span><span class="chip">Me faltan ${s.miss}</span>
+  <span class="chip">≈ ${s.price.toFixed(2)} €${s.noPrice?` (+${s.noPrice} sin precio)`:''}</span></div>
+  <div class="bt" style="justify-content:flex-start"><button data-act="cmark">Marcar todo como que lo tengo</button><button data-act="cshop"${s.miss?'':' disabled'}>Copiar lista de compra</button></div>
+  <div id="shopMsg" class="res-meta">Las tierras básicas no cuentan. Se apuntan por nombre de carta, no por mazo: si usas la misma carta en varios mazos, tendrás que tener las copias de todos.</div>
+  ${miss.length?miss.map(x=>`<div class="row" data-n="${esc(x.n)}">${thumb(x.c)}<div class="nm"><div class="n" data-act="detail">${esc(x.n)}${x.c?`<span class="cost">${pips(x.c.cost)}</span>`:''}</div><small>Faltan ${x.q-x.have}${x.have?` (tienes ${x.have})`:''}${x.c&&x.c.eur?` · ${(x.c.eur*(x.q-x.have)).toFixed(2)} €`:''}</small></div><div class="acts"><button class="sm pri" data-act="owntoggle" title="La tengo">✓ La tengo</button></div></div>`).join(''):'<div class="res-meta">¡Tienes todas las cartas de este mazo!</div>'}</div>`;
+}
+let collLast=[];
+function drawCollRes(){
+ const box=$('collRes');if(!box)return;
+ box.innerHTML=collLast.map(c=>`<div class="row" data-n="${esc(c.n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(c.n)}<span class="cost">${pips(c.cost)}</span></div><small>${esc(c.t)}${own(c.n)?` · Tengo ${own(c.n)}`:''}</small></div><div class="acts"><button class="sm pri" data-act="cown+" title="Tengo una más">＋</button></div></div>`).join('');
+}
+let cT,cSeq=0;
+async function collSearch(){
+ const q=$('cq').value.trim(),box=$('collRes');
+ if(q.length<2){collLast=[];box.innerHTML='';return}
+ const seq=++cSeq;box.innerHTML='<div class="res-meta">Buscando…</div>';
+ try{
+  const r=await sf('/cards/search?order=name&unique=cards&q='+encodeURIComponent(q.replace(/[()"]/g,'')));
+  if(seq!==cSeq)return;
+  collLast=(r.data||[]).slice(0,10).map(o=>remember(compact(o)));saveCache();
+  if(!collLast.length)box.innerHTML='<div class="res-meta">Sin resultados.</div>';else drawCollRes();
+ }catch(e){if(seq===cSeq)box.innerHTML='<div class="res-meta">No se pudo consultar Scryfall.</div>'}
+}
+function renderCollList(){
+ const box=$('collList');if(!box)return;
+ const f=($('collFilter').value||'').toLowerCase().trim();
+ const names=Object.keys(coll).sort((a,b)=>a.localeCompare(b));
+ const tot=names.reduce((s,n)=>s+coll[n],0);
+ $('collCount').textContent=`(${names.length} cartas, ${tot} copias)`;
+ const shown=names.filter(n=>!f||n.toLowerCase().includes(f)).slice(0,200);
+ box.innerHTML=shown.map(n=>{const c=find(n);return `<div class="row" data-n="${esc(n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(n)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div></div><div class="q"><button class="sm" data-act="cown-">−</button><b>${coll[n]}</b><button class="sm" data-act="cown+">+</button></div><div class="acts"><button class="sm dng" data-act="crm" title="Quitar de mi colección">✕</button></div></div>`}).join('')||`<div class="empty">${names.length?'Sin coincidencias.':'Tu colección está vacía. Busca una carta arriba, importa una lista o marca cartas desde un mazo.'}</div>`;
+ if(names.length>200&&!f)box.insertAdjacentHTML('beforeend','<div class="res-meta">Mostrando 200; usa el filtro para encontrar el resto.</div>');
+ const miss=names.filter(n=>!find(n));
+ const fresh=miss.filter(n=>!tried.has(n)).slice(0,75);   // solo una vez por carta: si no existe, no reintentar (evita bucle)
+ if(fresh.length)ensureOnce(fresh).then(()=>{if($('p-coll').classList.contains('on'))renderCollList()});
+}
+function renderColl(){
+ const p=$('p-coll');if(!p||!p.classList.contains('on'))return;
+ renderCollDeck();renderCollList();
+}
+async function collImport(){
+ const text=$('collImp').value.trim(),msg=$('collImpMsg');
+ if(!text){msg.textContent='Pega una lista primero.';return}
+ const r=parseList(text);const all=[...r.cmd.map(n=>({n,q:1})),...r.cards.map(e=>({n:e.n,q:e.q}))];
+ if(!all.length){msg.textContent='No encontré cartas.';return}
+ msg.textContent='Buscando cartas…';
+ const nf=await ensureCards(all.map(x=>x.n));
+ let k=0;
+ for(const x of all){const c=find(x.n);if(!c)continue;setOwn(c.n,own(c.n)+x.q);k+=x.q}
+ msg.textContent=`Añadidas ${k} copias${nf.length?` (${nf.length} no reconocidas: ${nf.slice(0,4).join(', ')})`:''}.`;
+ $('collImp').value='';renderAll();
+}
+/* ---------- ampliación al pasar el ratón ---------- */
+(function(){
+ if(!matchMedia('(hover:hover)').matches)return;
+ const hv=document.createElement('div');hv.id='hv';hv.innerHTML='<img alt="">';document.body.appendChild(hv);
+ const im=hv.firstChild;let host=null;
+ const hide=()=>{host=null;hv.style.display='none'};
+ const place=e=>{
+  const w=hv.offsetWidth||260,h=hv.offsetHeight||362;
+  let x=e.clientX+20;if(x+w>innerWidth-8)x=e.clientX-w-20;
+  let y=e.clientY-h/3;y=Math.max(8,Math.min(y,innerHeight-h-8));
+  hv.style.left=Math.max(8,x)+'px';hv.style.top=y+'px';
+ };
+ document.addEventListener('mouseover',e=>{
+  if($('detail').style.display==='flex'||$('modal').style.display==='flex'){hide();return}
+  const t=e.target.closest&&e.target.closest('.th,.n,.gc');
+  const h=t&&t.closest('[data-n]');
+  if(!h||e.target.closest('button,.own,.ob')){if(host)hide();return}
+  if(h===host)return;
+  const c=find(h.dataset.n),u=c&&(imgUrl(c,true)||imgUrl(c));
+  if(!u){hide();return}
+  host=h;im.src=u;hv.style.display='block';place(e);
+ });
+ document.addEventListener('mousemove',e=>{if(host)place(e)});
+ document.addEventListener('mouseout',e=>{if(host&&!host.contains(e.relatedTarget))hide()});
+ document.addEventListener('mousedown',hide);document.addEventListener('scroll',hide,true);
+})();
+
+/* ---------- importar / exportar ---------- */
+function parseList(text){
+ const res={cmd:[],cards:[],total:0};
+ let sec='main',seenHeader=false,seenCard=false;
+ for(const raw of text.split(/\r?\n/)){
+  let line=raw.trim();
+  if(!line){if(!seenHeader&&seenCard&&sec==='main')sec='side';continue}
+  if(/^(\/\/|#)/.test(line)){const m=line.replace(/^(\/\/|#)\s*/,'');if(!/^\d/.test(m)&&/^(sideboard|banquillo)/i.test(m)){sec='side';seenHeader=true}continue}
+  const h=line.replace(/:$/,'').toLowerCase();
+  if(/^(commanders?|comandantes?)$/.test(h)){sec='cmd';seenHeader=true;continue}
+  if(/^(deck|mainboard|main|mazo|principal|companion)$/.test(h)){sec=h==='companion'?'side':'main';seenHeader=true;continue}
+  if(/^(sideboard|side|banquillo)$/.test(h)){sec='side';seenHeader=true;continue}
+  if(/^(maybeboard|maybe|considering|candidatas)$/.test(h)){sec='maybe';seenHeader=true;continue}
+  if(/^(about|name\b)/i.test(line)&&!/^\d/.test(line))continue;
+  let board=sec;
+  const sb=line.match(/^SB:\s*(.*)$/i);if(sb){board='side';line=sb[1]}
+  const m=line.match(/^(?:(\d+)\s*[xX]?\s+)?(.+)$/);if(!m)continue;
+  const q=m[1]?parseInt(m[1],10):1;
+  let name=m[2].trim().replace(/\s+\*[A-Za-z]+\*\s*$/,'').replace(/\s+\([A-Za-z0-9]{2,6}\)(\s+[\w★-]+)?\s*$/,'').replace(/\s+\^[^^]*\^.*$/,'').replace(/\s+#\w+.*$/,'').trim();
+  if(!name)continue;
+  res.total+=q;seenCard=true;
+  if(board==='cmd'){if(!res.cmd.includes(name))res.cmd.push(name)}
+  else{const e=res.cards.find(x=>x.n===name&&x.b===board);if(e)e.q+=q;else res.cards.push({n:name,q,b:board})}
+ }
+ return res;
+}
+async function doImport(){
+ const text=$('impText').value.trim();if(!text){$('impMsg').textContent='Pega una lista primero.';return}
+ if(/^[\[{]/.test(text)){
+  try{
+   const o=JSON.parse(text),arr=Array.isArray(o)?o:(o.decks?Object.values(o.decks):[o]);let k=0;
+   if(o&&o.collection&&typeof o.collection==='object')for(const n in o.collection){const q=o.collection[n]|0;if(q>own(n))setOwn(n,q)}
+   for(const x of arr){if(!x||!Array.isArray(x.cards))continue;
+    const id=uid();decks[id]={name:String(x.name||'Importado'),format:FORMATS[x.format]?x.format:'commander',cmd:Array.isArray(x.cmd)?x.cmd.map(String):[],cards:x.cards.map(e=>({n:String(e.n),q:Math.max(1,e.q|0),b:BOARDS[e.b]?e.b:'main'})),updated:Date.now()};
+    save(id);cur=id;k++}
+   $('impMsg').textContent=`${k} mazo(s) importados desde JSON.`;renderAll();ensureCards(allDeckNames()).then(renderAll);return;
+  }catch(e){$('impMsg').textContent='JSON no válido.';return}
+ }
+ const r=parseList(text);
+ if(!r.cards.length&&!r.cmd.length){$('impMsg').textContent='No encontré cartas en el texto.';return}
+ $('impMsg').textContent='Buscando cartas en Scryfall…';
+ const names=[...r.cmd,...r.cards.map(e=>e.n)];
+ const nf=await ensureCards(names);
+ if(loading===0&&names.some(n=>!find(n))&&nf.length===0){$('impMsg').textContent='No se pudo contactar con Scryfall. Inténtalo de nuevo con conexión.';return}
+ if($('impMode').value==='new'||!D()){
+  const id=uid();decks[id]=mkDeck($('impName').value.trim()||'Mazo importado',r.cmd.length||r.total>=90?'commander':'libre');cur=id;
+ }
+ const d=D();
+ for(const n of r.cmd){const c=find(n),nm=c?c.n:n;if(!d.cmd.includes(nm)&&d.cmd.length<2)d.cmd.push(nm)}
+ for(const e of r.cards)addCard(e.n,e.b,e.q);
+ save(cur);lsSet('mtg_cur',cur);
+ $('impMsg').textContent=`Importadas ${r.total} cartas${nf.length?` (${nf.length} no reconocidas: ${nf.slice(0,5).join(', ')}${nf.length>5?'…':''})`:''}.`;
+ $('impText').value='';renderAll();setTab('deck');toast('Importado');
+}
+function exportText(){
+ const f=$('expFmt').value,d=D();
+ if(f==='json')return JSON.stringify({decks:Object.values(decks),collection:coll},null,1);
+ if(!d)return '';
+ const L=arr=>arr.map(e=>`${e.q} ${e.n}`);
+ const main=d.cards.filter(e=>e.b==='main').sort((a,b)=>a.n.localeCompare(b.n)),side=d.cards.filter(e=>e.b==='side'),maybe=d.cards.filter(e=>e.b==='maybe');
+ const cmd=d.cmd.map(n=>`1 ${n}`);
+ if(f==='flat')return [...cmd,...L(main)].join('\n')+(side.length?'\n\n'+L(side).join('\n'):'');
+ const parts=[];
+ if(cmd.length)parts.push('Commander\n'+cmd.join('\n'));
+ parts.push('Deck\n'+L(main).join('\n'));
+ if(side.length)parts.push('Sideboard\n'+L(side).join('\n'));
+ if(maybe.length)parts.push('Maybeboard\n'+L(maybe).join('\n'));
+ return parts.join('\n\n');
+}
+function renderExport(){$('expText').value=exportText();$('expMsg').textContent=''}
+async function copyExport(){
+ const t=$('expText');t.value=exportText();
+ try{await navigator.clipboard.writeText(t.value);$('expMsg').textContent='Copiado al portapapeles.'}
+ catch(e){t.focus();t.select();$('expMsg').textContent='No se pudo copiar automáticamente: el texto está seleccionado, cópialo manualmente.'}
+}
+function dlExport(){
+ const f=$('expFmt').value,txt=exportText();
+ const name=(f==='json'?'mazos-mtg':(D()?.name||'mazo').replace(/[^\w\-]+/g,'_'))+(f==='json'?'.json':'.txt');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:f==='json'?'application/json':'text/plain'}));a.download=name;
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+ $('expMsg').textContent='Descarga iniciada: '+name;
+}
+
+/* ---------- eventos ---------- */
+function renderAll(){renderHeader();renderDeck();renderStats();renderRec();renderColl();if(lastResults.length)renderResults();if($('p-io').classList.contains('on'))renderExport();renderDetail()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('deckSel').onchange=e=>{cur=e.target.value;lsSet('mtg_cur',cur);renderAll()};
+$('newBtn').onclick=async()=>{
+ const n=await ask({title:'Nuevo mazo',input:'',ok:'Crear'});if(n===null)return;
+ const id=uid();decks[id]=mkDeck(n||'Mazo nuevo','commander');cur=id;lsSet('mtg_cur',id);save(id);renderAll();setTab('search');
+};
+$('q').oninput=debounceSearch;
+['fType','fCmc','fCmd','fLegal'].forEach(i=>$(i).onchange=()=>runSearch(false));
+$('fCi').onclick=e=>{const b=e.target.closest('[data-ci]');if(!b)return;const c=b.dataset.ci;selCi.has(c)?selCi.delete(c):selCi.add(c);b.classList.toggle('on');runSearch(false)};
+$('impBtn').onclick=doImport;
+$('cq').oninput=()=>{clearTimeout(cT);cT=setTimeout(collSearch,350)};
+$('collFilter').oninput=renderCollList;
+$('collImpBtn').onclick=collImport;
+$('impFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('impText').value=await f.text();if(!$('impName').value)$('impName').value=f.name.replace(/\.[^.]+$/,'')};
+$('expFmt').onchange=renderExport;$('expCopy').onclick=copyExport;$('expDl').onclick=dlExport;
+$('detail').onclick=e=>{if(e.target.id==='detail'){detail=null;renderDetail()}};
+document.addEventListener('change',e=>{if(e.target.id==='fmtSel'){D().format=e.target.value;save(cur);renderAll()}
+ if(e.target.id==='recSort'){rec.sort=e.target.value;rec.shown=30;renderRec()}
+ if(e.target.id==='recCat'){rec.cat=e.target.value;rec.shown=30;renderRec()}});
+document.addEventListener('click',async e=>{
+ if(e.target.id==='moreBtn'){e.target.disabled=true;runSearch(true);return}
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const act=b.dataset.act,row=b.closest('[data-n]'),n=row&&row.dataset.n,bd=row&&row.dataset.b;
+ const d=D();
+ if(act==='close'){detail=null;renderDetail();return}
+ if(act==='rrefresh'){loadRec(true);return}
+ if(act==='rmore'){rec.shown+=30;renderRec();ensureOnce(rec.list.filter(x=>!hasKey(deckKeys(D()),x.name)).sort((x,y)=>rec.sort==='syn'?y.syn-x.syn:y.inc-x.inc).slice(0,rec.shown).map(x=>x.name)).then(renderRec);return}
+ if(act==='cmark'){for(const x of needList(d))if(x.have<x.q)setOwn(x.n,x.q);renderAll();toast('Marcadas como que las tienes');return}
+ if(act==='cshop'){const t=shopText(d);try{await navigator.clipboard.writeText(t);toast('Lista de compra copiada')}catch(e){$('shopMsg').innerHTML='<textarea readonly style="min-height:120px">'+esc(t)+'</textarea>'}return}
+ if(act==='view'){viewMode=viewMode==='grid'?'list':'grid';lsSet('mtg_view',viewMode);renderDeck();return}
+ if(act==='rename'){const v=await ask({title:'Renombrar mazo',input:d.name});if(v){d.name=v;save(cur);renderAll()}return}
+ if(act==='dup'){const id=uid();decks[id]=JSON.parse(JSON.stringify(d));decks[id].name=d.name+' (copia)';cur=id;lsSet('mtg_cur',id);save(id);renderAll();toast('Mazo duplicado');return}
+ if(act==='del'){if(await ask({title:'¿Borrar “'+d.name+'”?',text:'Esta acción no se puede deshacer.',ok:'Borrar'})){const id=cur;cur=null;removeDeck(id);ensureDeck();renderAll()}return}
+ if(!d||!n)return;
+ if(act==='detail'){detail={n,b:bd||null};renderDetail();return}
+ if(act==='add'){
+  const board=$('target').value,why=canAdd(d,n,board);
+  if(why){toast('✋ '+why);return}
+  addCard(n,board);toast(`＋ ${n}`);
+ }
+ else if(act==='cown+')setOwn(n,own(n)+1);
+ else if(act==='cown-')setOwn(n,own(n)-1);
+ else if(act==='crm')setOwn(n,0);
+ else if(act==='owntoggle'){
+  const e=d.cards.find(x=>x.n===n&&x.b===bd),need=e?e.q:1;
+  if(own(n)<need){setOwn(n,need);toast('✓ La tienes: '+n)}else{setOwn(n,0);toast('Quitada de tu colección: '+n)}
+ }
+ else if(act==='radd'){const why=canAdd(d,n,'main');if(why){toast('✋ '+why);return}addCard(n,'main');toast('＋ '+n)}
+ else if(act==='rmaybe'){addCard(n,'maybe');toast('☆ '+n+' en candidatas')}
+ else if(act==='rcut'){setQty(n,'main',-999);toast('✕ '+n)}
+ else if(act==='inc'){const why=canAdd(d,n,bd);if(why){toast('✋ '+why);return}addCard(n,bd)}
+ else if(act==='dec')setQty(n,bd,-1);
+ else if(act==='rm')setQty(n,bd,-999);
+ else if(act==='board'){
+  if(nextB(bd)==='main'){const why=canAdd(d,n,'main');if(why){toast('✋ '+why);return}}
+  moveCard(n,bd);if(detail&&detail.n===n)detail.b=nextB(bd)}
+ else if(act==='cmd'){setCmd(n);toast(d.cmd.includes(n)?`★ Comandante: ${n}`:'Comandante quitado');if(detail&&detail.n===n&&detail.b==='cmd')detail=null}
+ save(cur);renderDeck();renderStats();renderRec();renderColl();drawCollRes();renderDetail();if(act==='cmd'&&lastResults.length)renderResults();
+});
+
+/* ---------- acceso con contraseña ---------- */
+const LK='mtg_lock';
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex=h=>new Uint8Array((h.match(/../g)||[]).map(x=>parseInt(x,16)));
+async function hashPw(pw,saltHex){
+ if(!(window.crypto&&crypto.subtle)){let h=5381;for(const ch of saltHex+pw)h=((h<<5)+h+ch.charCodeAt(0))|0;return 'x'+h}
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+ return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:unhex(saltHex),iterations:150000,hash:'SHA-256'},key,256));
+}
+function lockCfg(){const v=lsGet(LK);if(!v)return null;if(v==='none')return 'none';try{return JSON.parse(v)}catch(e){return null}}
+const sessOk=()=>{try{return sessionStorage.getItem('mtg_ok')==='1'}catch(e){return false}};
+const setSess=v=>{try{v?sessionStorage.setItem('mtg_ok','1'):sessionStorage.removeItem('mtg_ok')}catch(e){}};
+let lockMode='enter';
+function showLock(mode){
+ lockMode=mode;document.body.classList.add('locked');$('lock').style.display='flex';
+ $('lockErr').textContent='';$('lockPw').value='';$('lockPw2').value='';
+ const create=mode==='create';
+ $('lockPw2').style.display=create?'block':'none';$('lockSkip').style.display=create?'inline-block':'none';
+ $('lockPw').autocomplete=create?'new-password':'current-password';
+ $('lockMsg').textContent=create?'Crea una contraseña para proteger tus mazos en este dispositivo (opcional).':'Introduce tu contraseña para entrar.';
+ $('lockGo').textContent=create?'Guardar':'Entrar';
+ setTimeout(()=>$('lockPw').focus(),50);
+}
+function hideLock(){document.body.classList.remove('locked');$('lock').style.display='none';setSess(true);renderLockInfo()}
+function renderLockInfo(){const c=lockCfg();$('lockInfo').textContent=c&&c!=='none'?'Contraseña activada.':'Sin contraseña: la app se abre directamente.'}
+async function lockSubmit(){
+ const pw=$('lockPw').value;
+ if(lockMode==='create'){
+  if(pw.length<4){$('lockErr').textContent='Usa al menos 4 caracteres.';return}
+  if(pw!==$('lockPw2').value){$('lockErr').textContent='Las contraseñas no coinciden.';return}
+  const salt=hex(crypto.getRandomValues(new Uint8Array(16)));
+  lsSet(LK,JSON.stringify({s:salt,h:await hashPw(pw,salt)}));hideLock();toast('Contraseña guardada');return;
+ }
+ const c=lockCfg();
+ if(c&&c!=='none'&&await hashPw(pw,c.s)===c.h){hideLock();return}
+ $('lockErr').textContent='Contraseña incorrecta.';$('lockPw').value='';
+ await new Promise(r=>setTimeout(r,600));
+}
+async function checkCurrent(title){
+ const c=lockCfg();if(!c||c==='none')return true;
+ const pw=await ask({title,input:'',ok:'Continuar',type:'password'});
+ if(pw===null)return false;
+ if(await hashPw(pw,c.s)===c.h)return true;
+ toast('Contraseña incorrecta');return false;
+}
+$('lockGo').onclick=lockSubmit;
+$('lockPw').onkeydown=$('lockPw2').onkeydown=e=>{if(e.key==='Enter')lockSubmit()};
+$('lockSkip').onclick=()=>{lsSet(LK,'none');hideLock()};
+$('lkNow').onclick=()=>{const c=lockCfg();if(!c||c==='none'){toast('Primero pon una contraseña');return}setSess(false);showLock('enter')};
+$('lkSet').onclick=async()=>{
+ if(!(await checkCurrent('Contraseña actual')))return;
+ showLock('create');$('lockSkip').style.display='none';
+ $('lockMsg').textContent='Elige tu nueva contraseña.';
+};
+$('lkOff').onclick=async()=>{
+ const c=lockCfg();if(!c||c==='none'){toast('No hay contraseña');return}
+ if(!(await checkCurrent('Contraseña actual')))return;
+ lsSet(LK,'none');renderLockInfo();toast('Contraseña quitada');
+};
+function lockInit(){
+ renderLockInfo();
+ const c=lockCfg();
+ if(c===null)showLock('create');
+ else if(c!=='none'&&!sessOk())showLock('enter');
+}
+
+loadCache();loadLocal();ensureDeck();renderAll();
+setTab(mq.matches?'search':'deck');
+lockInit();
+ensureCards(allDeckNames()).then(()=>{persist();renderAll()});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
