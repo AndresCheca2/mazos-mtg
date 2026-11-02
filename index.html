@@ -91,7 +91,8 @@ body.locked header,body.locked main,body.locked #hv{display:none!important}
 .empty{color:var(--m);text-align:center;padding:24px 8px}
 .grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
 .grid2>div,.left{min-width:0}
-html,body{max-width:100%;overflow-x:hidden}
+html,body{max-width:100%}
+body{overflow-x:clip}
 @media(min-width:900px){
  .grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
  #p-deck{display:block!important}
@@ -189,7 +190,10 @@ details summary{font-weight:600;padding:4px 0}
 .seg button{flex:1;padding:10px;font-weight:700;border-radius:12px;color:var(--m)}
 .seg button.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 6px 18px #6f8dff55}
 .tg{border-radius:99px;padding:4px 14px;font-size:13px;min-height:32px}
-.tg.on{background:var(--grad);color:#fff;border-color:transparent}</style>
+.tg.on{background:var(--grad);color:#fff;border-color:transparent}.swap{margin:-2px 0 10px 50px;padding:7px 10px;background:#6f8dff14;border:1px dashed #6f8dff66;border-radius:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.swap small{color:var(--m)}
+.swap .n{cursor:pointer}
+</style>
 </head>
 <body>
 <div id="topbar">
@@ -513,11 +517,11 @@ function checks(d){
  return{total,size:F.size,w,v,unk:unk.length};
 }
 /* Reglas de Commander al añadir a mano: devuelve el motivo de rechazo o null. */
-function canAdd(d,name,board){
+function canAdd(d,name,board,ignoreCount){
  if(d.format!=='commander'||board!=='main')return null;
  const c=find(name);
  const inMain=d.cards.filter(e=>e.b==='main').reduce((a,e)=>a+e.q,0)+d.cmd.length;
- if(inMain>=FORMATS.commander.size)return 'El mazo ya tiene 100 cartas';
+ if(!ignoreCount&&inMain>=FORMATS.commander.size)return 'El mazo ya tiene 100 cartas';
  if(!c)return null;
  if(d.cmd.includes(c.n))return 'Esa carta ya es tu comandante';
  if(!isBasic(c)&&!ANYNUM.has(c.l)&&d.cards.some(e=>e.n===c.n&&e.b==='main'))return 'Ya está en el mazo (solo una copia en Commander)';
@@ -1013,7 +1017,7 @@ async function loadRec(force){
  await ensureOnce([...want,...near]);
  if(rec.key===key)renderRec();
 }
-function cutCandidates(d,a){
+function cutCandidates(d,a,limit=12){
  const out=[],ranges={ramp:[8,14,'aceleración de maná'],draw:[8,14,'robo de cartas'],removal:[6,12,'remoción'],wipe:[1,4,'barridos']};
  const over={};
  for(const k in ranges){const n=cnt(a.roles[k]);if(n>ranges[k][1])over[k]={n,max:ranges[k][1],label:ranges[k][2]}}
@@ -1033,8 +1037,30 @@ function cutCandidates(d,a){
   if(!reasons.length)continue;
   out.push({n:c.n,score,reasons,inc});
  }
- return out.sort((x,y)=>y.score-x.score).slice(0,12);
+ return out.sort((x,y)=>y.score-x.score).slice(0,limit);
 }
+/* Para cada carta a quitar, propone la recomendada que mejor la sustituiría. */
+function suggestSwaps(d,a,cuts){
+ const keys=deckKeys(d);
+ const pool=rec.list.filter(x=>!hasKey(keys,x.name)).map(x=>({x,c:find(x.name)})).filter(o=>o.c&&!canAdd(d,o.x.name,'main',true)).sort((p,q)=>q.x.inc-p.x.inc);
+ const ranges={ramp:[8,'aceleración de maná'],draw:[8,'robo de cartas'],removal:[6,'remoción'],wipe:[1,'barridos']};
+ const have={};for(const k in ranges)have[k]=cnt(a.roles[k]);
+ const used=new Set(),out={};
+ for(const cu of cuts){
+  const cc=find(cu.n);if(!cc)continue;
+  const isLand=cat(cc)==='Land';
+  for(const k in ranges){const r=ROLES.find(z=>z.k===k);if(r.test(cc))have[k]--}   // lo que se quita deja de contar
+  const cands=pool.filter(o=>!used.has(o.x.name)&&((cat(o.c)==='Land')===isLand));
+  let pick=null,why='';
+  const defs=Object.keys(ranges).filter(k=>have[k]<ranges[k][0]).sort((p,q)=>(ranges[q][0]-have[q])-(ranges[p][0]-have[p]));
+  for(const k of defs){const r=ROLES.find(z=>z.k===k);const o=cands.find(o=>r.test(o.c));if(o){pick=o;why=`te falta ${ranges[k][1]}`;have[k]++;break}}
+  if(!pick){const o=cands.find(o=>cat(o.c)===cat(cc));if(o){pick=o;why=`es la más popular de su tipo`}}
+  if(!pick&&cands[0]){pick=cands[0];why='de las más usadas con este comandante'}
+  if(pick){used.add(pick.x.name);out[cu.n]={to:pick.x.name,why,inc:pick.x.inc}}
+ }
+ return out;
+}
+const swapHtml=(label,name,why,addName,rmName)=>`<div class="swap" data-n="${esc(name)}">↳ ${label} <b class="n" data-act="detail">${esc(name)}</b> <small>${esc(why)}</small> <button class="sm pri" data-act="rswap" data-add="${esc(addName)}" data-rm="${esc(rmName)}" title="Quita una y añade la otra">⇄ Cambiar</button></div>`;
 function recRow(name,extra,btn=true){
  const c=find(name);
  return `<div class="row" data-n="${esc(name)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(name)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small>${extra}</small></div>${btn?'<div class="acts"><button class="sm pri" data-act="radd" title="Añadir al mazo">＋</button><button class="sm" data-act="rmaybe" title="A candidatas">☆</button></div>':''}</div>`;
@@ -1050,7 +1076,18 @@ function renderRec(){
  if(rec.st==='err'){p.innerHTML='<div class="card empty">No se pudo consultar EDHREC. Revisa tu conexión.<br><button data-act="rrefresh" style="margin-top:8px">Reintentar</button></div>';return}
  const keys=deckKeys(d),a=analyze(d);
  // 1) cortes
- const cuts=cutCandidates(d,a);
+ const cutsAll=cutCandidates(d,a,30),cuts=cutsAll.slice(0,12);
+ const swapsCut=suggestSwaps(d,a,cuts);
+ const usedCuts=new Set();
+ const recSwap=x=>{
+  const c=find(x.name);if(!c)return '';
+  const isL=cat(c)==='Land';
+  const same=k=>{const kc=find(k.n);return kc&&(cat(kc)==='Land')===isL};
+  const pick=cutsAll.find(k=>!usedCuts.has(k.n)&&same(k)&&cat(find(k.n))===cat(c))||cutsAll.find(k=>!usedCuts.has(k.n)&&same(k));
+  if(!pick)return '';
+  usedCuts.add(pick.n);
+  return swapHtml('Quitaría',pick.n,pick.reasons[0],x.name,pick.n);
+ };
  // 2) añadidos
  let adds=rec.list.filter(x=>!hasKey(keys,x.name));
  const cats=[...new Set(adds.map(x=>x.cat))];
@@ -1066,14 +1103,14 @@ function renderRec(){
   ${miss?`<div class="warn">Te falta: ${c.missing.map(esc).join(', ')}</div>`+recRow(c.missing[0],(()=>{const w=canAdd(d,c.missing[0],'main');return w?esc(w):'Se puede añadir'})()):''}</div>`;
  let h=`<div class="card"><div class="top"><b style="flex:1">Datos de EDHREC para ${esc(d.cmd.join(' + '))}</b><button class="sm" data-act="rrefresh">Actualizar</button></div>
   <div class="res-meta">EDHREC es una web independiente: estos datos salen de su servicio no oficial y pueden cambiar. Son orientativos y no tienen en cuenta tu estilo de juego.</div></div>`;
- h+=`<div class="card"><h3 style="margin-top:0">Cartas que podrías quitar</h3>${cuts.length?cuts.map(x=>{const c=find(x.n);return `<div class="row" data-n="${esc(x.n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(x.n)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small style="white-space:normal">${x.reasons.map(esc).join(' · ')}</small></div><div class="acts"><button class="sm dng" data-act="rcut" title="Quitar del mazo">✕</button></div></div>`}).join(''):'<div class="res-meta">No veo cartas claras que quitar: todo es habitual con este comandante.</div>'}
-  <div class="res-meta">Ordenadas de más a menos sugeridas. Sustitúyelas por cartas de la lista de abajo.</div></div>`;
+ h+=`<div class="card"><h3 style="margin-top:0">Cartas que podrías quitar</h3>${cuts.length?cuts.map(x=>{const c=find(x.n);return `<div class="row" data-n="${esc(x.n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(x.n)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small style="white-space:normal">${x.reasons.map(esc).join(' · ')}</small></div><div class="acts"><button class="sm dng" data-act="rcut" title="Quitar del mazo">✕</button></div></div>${swapsCut[x.n]?swapHtml('Cambiar por',swapsCut[x.n].to,`${Math.round(swapsCut[x.n].inc*100)}% de los mazos · ${swapsCut[x.n].why}`,swapsCut[x.n].to,x.n):''}`}).join(''):'<div class="res-meta">No veo cartas claras que quitar: todo es habitual con este comandante.</div>'}
+  <div class="res-meta">Ordenadas de más a menos sugeridas. Debajo de cada una te propongo por cuál cambiarla.</div></div>`;
  h+=`<div class="card"><h3 style="margin-top:0">Combos completos en tu mazo (${full.length})</h3>${full.length?full.slice(0,15).map(c=>comboHtml(c,false)).join(''):'<div class="res-meta">Tu mazo no tiene ninguno de los combos populares de este comandante.</div>'}</div>`;
  h+=`<div class="card"><h3 style="margin-top:0">Combos a una carta de completarse (${near.length})</h3>${near.length?near.map(c=>comboHtml(c,true)).join(''):'<div class="res-meta">No hay combos populares a una sola carta.</div>'}</div>`;
  h+=`<div class="card"><h3 style="margin-top:0">Cartas recomendadas que no tienes (${adds.length})</h3>
   <div class="filters"><select id="recSort"><option value="pop"${rec.sort==='pop'?' selected':''}>Más populares</option><option value="syn"${rec.sort==='syn'?' selected':''}>Mayor sinergia</option></select>
   <select id="recCat"><option value="all">Todas las categorías</option>${cats.map(k=>`<option${k===rec.cat?' selected':''}>${esc(k)}</option>`).join('')}</select></div>
-  ${shown.map(x=>recRow(x.name,`${Math.round(x.inc*100)}% de los mazos${x.syn>0.005?` · sinergia +${Math.round(x.syn*100)}%`:''} · ${esc(x.cat)}`)).join('')||'<div class="res-meta">Sin resultados.</div>'}
+  ${shown.map(x=>recRow(x.name,`${Math.round(x.inc*100)}% de los mazos${x.syn>0.005?` · sinergia +${Math.round(x.syn*100)}%`:''} · ${esc(x.cat)}`)+recSwap(x)).join('')||'<div class="res-meta">Sin resultados.</div>'}
   ${adds.length>shown.length?'<button data-act="rmore" style="width:100%;margin-top:8px">Mostrar más</button>':''}</div>`;
  p.innerHTML=h;
 }
@@ -1333,6 +1370,11 @@ document.addEventListener('click',async e=>{
  }
  else if(act==='radd'){const why=canAdd(d,n,'main');if(why){toast('✋ '+why);return}addCard(n,'main');toast('＋ '+n)}
  else if(act==='rmaybe'){addCard(n,'maybe');toast('☆ '+n+' en candidatas')}
+ else if(act==='rswap'){
+  const add=b.dataset.add,rm=b.dataset.rm,why=canAdd(d,add,'main',true);
+  if(why){toast('✋ '+why);return}
+  setQty(rm,'main',-999);addCard(add,'main');toast('⇄ '+rm+' → '+add);
+ }
  else if(act==='rcut'){setQty(n,'main',-999);toast('✕ '+n)}
  else if(act==='inc'){const why=canAdd(d,n,bd);if(why){toast('✋ '+why);return}addCard(n,bd)}
  else if(act==='dec')setQty(n,bd,-1);
