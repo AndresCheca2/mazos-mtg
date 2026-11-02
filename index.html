@@ -183,7 +183,13 @@ details summary{font-weight:600;padding:4px 0}
 @media(max-width:899px){
  .tab .tl{font-size:10px}
  .dk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-}</style>
+}
+/* ===== Mazos recomendados ===== */
+.seg{display:flex;gap:8px;margin-bottom:12px}
+.seg button{flex:1;padding:10px;font-weight:700;border-radius:12px;color:var(--m)}
+.seg button.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 6px 18px #6f8dff55}
+.tg{border-radius:99px;padding:4px 14px;font-size:13px;min-height:32px}
+.tg.on{background:var(--grad);color:#fff;border-color:transparent}</style>
 </head>
 <body>
 <div id="topbar">
@@ -226,7 +232,16 @@ details summary{font-weight:600;padding:4px 0}
     <div id="results"></div>
    </section>
    <section class="panel" id="p-stats"></section>
-   <section class="panel" id="p-rec"></section>
+   <section class="panel" id="p-rec">
+    <div class="seg" id="recSeg"><button class="on" data-act="recmode" data-m="mine">Para mi mazo</button><button data-act="recmode" data-m="best">Mazos recomendados</button></div>
+    <div id="recMine"></div>
+    <div id="recBest" style="display:none">
+     <div class="card"><h3 style="margin-top:0">Elige un comandante</h3>
+      <input id="bq" type="search" placeholder="Buscar comandante… (ej. Atraxa)" autocomplete="off" style="width:100%">
+      <div id="bqRes"></div></div>
+     <div id="bestView"></div>
+    </div>
+   </section>
    <section class="panel" id="p-coll">
     <div id="collDeck"></div>
     <div class="card"><h3 style="margin-top:0">Añadir a mi colección</h3>
@@ -441,7 +456,7 @@ function setTab(t){
  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
  if(t==='io')renderExport();
  if(t==='decks')renderDecks();
- if(t==='rec')loadRec(false);
+ if(t==='rec'){if(recMode==='best')initBest();else loadRec(false)}
  if(t==='coll')renderColl();
 }
 const mq=matchMedia('(min-width:900px)');
@@ -855,6 +870,100 @@ function renderDecks(){
  if(fresh.length)ensureOnce(fresh).then(()=>{if(p.classList.contains('on'))renderDecks()});
 }
 
+/* ---------- mazos recomendados por presupuesto y tema (EDHREC) ---------- */
+let recMode='mine';
+const best={names:[],slug:'',tag:'',bud:'',tags:[],counts:null,st:'idle',data:null,res:[],key:''};
+const BUDL={'':'Normal',budget:'Económico',expensive:'Caro'};
+function setRecMode(m){
+ recMode=m;
+ document.querySelectorAll('#recSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+ $('recMine').style.display=m==='mine'?'block':'none';$('recBest').style.display=m==='best'?'block':'none';
+ if(m==='best')initBest();else loadRec(false);
+}
+function initBest(){
+ if(!best.names.length){const d=D();if(d&&d.cmd.length){pickBest(d.cmd.slice(0,2));return}}
+ renderBestView();
+}
+async function pickBest(names){
+ best.names=names;best.slug=names.map(edhSlug).sort().join('-');best.tag='';best.bud='';best.tags=[];best.counts=null;best.data=null;best.st='loading';
+ renderBestView();
+ ensureOnce(names).then(renderBestView);
+ try{
+  const r=await fetch(`${EDH}/commanders/${best.slug}.json`);if(!r.ok)throw new Error(String(r.status));
+  const j=await r.json();
+  best.tags=((j.panels&&j.panels.taglinks)||[]).slice(0,14);best.counts=j.budget_counts||null;
+ }catch(e){best.st=String(e.message)==='404'?'nf':'err';renderBestView();return}
+ loadBestDeck();
+}
+async function loadBestDeck(){
+ const key=best.slug+'|'+best.tag+'|'+best.bud;best.key=key;best.st='loading';best.data=null;renderBestView();
+ const url=`${EDH}/average-decks/${best.slug}${best.tag?'/'+best.tag:''}${best.bud?'/'+best.bud:''}.json`;
+ try{
+  const r=await fetch(url);if(!r.ok)throw new Error(String(r.status));
+  const j=await r.json();if(best.key!==key)return;
+  const cards=(j.deck&&j.deck.cards)||{},order=['Creature','Planeswalker','Instant','Sorcery','Artifact','Enchantment','Battle','Land'];
+  const types=Object.keys(cards).sort((a,b)=>(order.indexOf(a)<0?99:order.indexOf(a))-(order.indexOf(b)<0?99:order.indexOf(b)));
+  const groups=[];let total=0;
+  for(const t of types){const items=(cards[t]||[]).map(x=>Array.isArray(x)?{n:x[0],q:x[1]||1}:(x&&x.value?{n:x.value[0],q:x.value[1]||1}:null)).filter(x=>x&&x.n);if(items.length){groups.push({t,items});total+=items.reduce((s,x)=>s+x.q,0)}}
+  best.data={groups,total:total+best.names.length};best.st='ok';renderBestView();
+  await ensureOnce(groups.flatMap(g=>g.items.map(x=>x.n)));
+  if(best.key===key)renderBestView();
+ }catch(e){if(best.key===key){best.st=String(e.message)==='404'?'nocombo':'err';renderBestView()}}
+}
+let bqT,bqSeq=0;
+async function bestSearch(){
+ const q=$('bq').value.trim(),box=$('bqRes');
+ if(q.length<2){best.res=[];box.innerHTML='';return}
+ const seq=++bqSeq;box.innerHTML='<div class="res-meta">Buscando…</div>';
+ try{
+  const r=await sf('/cards/search?order=edhrec&unique=cards&q='+encodeURIComponent(q.replace(/[()"]/g,'')+' is:commander'));
+  if(seq!==bqSeq)return;
+  best.res=(r.data||[]).slice(0,8).map(o=>remember(compact(o)));saveCache();
+  box.innerHTML=best.res.map(c=>`<div class="row" data-n="${esc(c.n)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(c.n)}<span class="cost">${pips(c.cost)}</span></div><small>${esc(c.t)}</small></div><div class="acts"><button class="sm pri" data-act="bestpick">Elegir</button></div></div>`).join('')||'<div class="res-meta">No encuentro ningún comandante con ese nombre.</div>';
+ }catch(e){if(seq===bqSeq)box.innerHTML='<div class="res-meta">No se pudo consultar Scryfall.</div>'}
+}
+function renderBestView(){
+ const panel=$('p-rec'),v=$('bestView');
+ if(!v||!panel.classList.contains('on')||recMode!=='best')return;
+ if(!best.names.length){v.innerHTML='<div class="card empty">Busca un comandante arriba para ver su mazo recomendado por presupuesto y por tema.</div>';return}
+ const cn=best.names.map(n=>{const c=find(n);return c?c.n:n});
+ const cmdCards=best.names.map(n=>find(n));
+ let h=`<div class="card"><div class="row" style="border:0">${cmdCards.map(c=>thumb(c)).join('')}<div class="nm"><div class="n" style="font-size:17px">${esc(cn.join(' + '))}</div><small>Mazo medio de EDHREC según presupuesto y tema</small></div></div>`;
+ const bc=best.counts||{};const cnt0={'':bc.middle,budget:bc.budget,expensive:bc.expensive};
+ h+=`<h3>Presupuesto</h3><div class="chips">${Object.keys(BUDL).map(k=>`<button class="tg${best.bud===k?' on':''}" data-act="bestbud" data-bud="${k}">${BUDL[k]}${cnt0[k]?` <span style="opacity:.7">(${cnt0[k].toLocaleString('es')})</span>`:''}</button>`).join('')}</div>`;
+ if(best.tags.length)h+=`<h3>Tema</h3><div class="chips"><button class="tg${best.tag===''?' on':''}" data-act="besttag" data-tag="">General</button>${best.tags.map(t=>`<button class="tg${best.tag===t.slug?' on':''}" data-act="besttag" data-tag="${esc(t.slug)}">${esc(t.value)} <span style="opacity:.7">(${t.count.toLocaleString('es')})</span></button>`).join('')}</div>`;
+ h+='</div>';
+ if(best.st==='loading')h+='<div class="card empty">Consultando EDHREC…</div>';
+ else if(best.st==='nf')h+='<div class="card empty">EDHREC no tiene datos para este comandante.</div>';
+ else if(best.st==='nocombo')h+='<div class="card empty">No hay mazo medio para esa combinación de presupuesto y tema. Prueba con otra.</div>';
+ else if(best.st==='err')h+='<div class="card empty">No se pudo consultar EDHREC. Revisa tu conexión.<br><button data-act="bestretry" style="margin-top:8px">Reintentar</button></div>';
+ else if(best.data){
+  const d=D(),keys=d?deckKeys(d):new Set();let price=0,noPrice=0,have=0,need=0;
+  for(const g of best.data.groups)for(const x of g.items){const c=find(x.n);if(isBasic(c))continue;need+=x.q;have+=Math.min(x.q,own(x.n));if(c&&c.eur)price+=c.eur*x.q;else noPrice+=x.q}
+  const label=(best.tags.find(t=>t.slug===best.tag)||{}).value;
+  h+=`<div class="card"><h3 style="margin-top:0">${esc(label||'General')} · ${BUDL[best.bud]}</h3>
+   <div class="chips"><span class="chip">${best.data.total} cartas</span><span class="chip">≈ ${price.toFixed(0)} €${noPrice?` (+${noPrice} sin precio)`:''}</span>${Object.keys(coll).length?`<span class="chip ${have>=need?'ok':'bad'}">Tengo ${have}/${need}</span>`:''}</div>
+   <div class="bt" style="justify-content:flex-start"><button class="pri" data-act="bestcreate">＋ Crear un mazo con esta lista</button><a style="align-self:center;color:var(--a);font-size:13px" href="https://edhrec.com/average-decks/${esc(best.slug)}${best.tag?'/'+esc(best.tag):''}${best.bud?'/'+best.bud:''}" target="_blank" rel="noopener">Ver en EDHREC</a></div>
+   <div class="res-meta">Es la media de miles de mazos reales, no un mazo concreto: suele quedar por debajo de 100 cartas. Complétala con la pestaña «Para mi mazo». Los precios son aproximados (tierras básicas aparte).</div></div>`;
+  for(const g of best.data.groups){
+   h+=`<div class="card"><h3 style="margin-top:0">${esc(CATES[g.t]||g.t)} <span>(${g.items.reduce((s,x)=>s+x.q,0)})</span></h3>`+
+    g.items.map(x=>{const c=find(x.n),inDeck=hasKey(keys,x.n);
+     return recRow(x.n,`${x.q>1?x.q+'× · ':''}${inDeck?'✓ ya en tu mazo · ':''}${c&&c.eur?c.eur.toFixed(2)+' €':(isBasic(c)?'tierra básica':'sin precio')}${!isBasic(c)&&own(x.n)>=x.q?' · ✓ la tengo':''}`)}).join('')+'</div>';
+  }
+ }
+ v.innerHTML=h;
+}
+function bestCreate(){
+ if(!best.data)return;
+ const names=best.names.map(n=>{const c=find(n);return c?c.n:n});
+ const label=(best.tags.find(t=>t.slug===best.tag)||{}).value;
+ const id=uid();
+ decks[id]=mkDeck(`${names.map(n=>n.split(',')[0]).join(' + ')}${label?' · '+label:''}${best.bud?' · '+BUDL[best.bud]:''}`,'commander');
+ decks[id].cmd=names;
+ for(const g of best.data.groups)for(const x of g.items){const c=find(x.n),nm=c?c.n:x.n;const e=decks[id].cards.find(y=>y.n===nm);if(e)e.q+=x.q;else decks[id].cards.push({n:nm,q:x.q,b:'main'})}
+ cur=id;lsSet('mtg_cur',id);save(id);renderAll();setTab(mq.matches?'decks':'deck');toast('Mazo creado');
+}
+
 /* ---------- recomendaciones (EDHREC) ---------- */
 const EDH='https://json.edhrec.com/pages';
 let rec={key:'',st:'idle',list:[],info:new Map(),combos:[],sort:'pop',cat:'all',shown:30};
@@ -931,7 +1040,8 @@ function recRow(name,extra,btn=true){
  return `<div class="row" data-n="${esc(name)}">${thumb(c)}<div class="nm"><div class="n" data-act="detail">${esc(name)}${c?`<span class="cost">${pips(c.cost)}</span>`:''}</div><small>${extra}</small></div>${btn?'<div class="acts"><button class="sm pri" data-act="radd" title="Añadir al mazo">＋</button><button class="sm" data-act="rmaybe" title="A candidatas">☆</button></div>':''}</div>`;
 }
 function renderRec(){
- const p=$('p-rec');if(!p||!p.classList.contains('on'))return;
+ const panel=$('p-rec');if(!panel||!panel.classList.contains('on')||recMode!=='mine')return;
+ const p=$('recMine');
  const d=D();
  if(!d||d.format!=='commander'){p.innerHTML='<div class="card empty">Las recomendaciones usan EDHREC y solo sirven para mazos de <b>Commander</b>. Cambia el formato del mazo en la pestaña Mazo.</div>';return}
  if(!d.cmd.length){p.innerHTML='<div class="card empty">Elige primero un comandante (★) para ver recomendaciones y combos.</div>';return}
@@ -1175,6 +1285,7 @@ $('q').oninput=debounceSearch;
 ['fType','fCmc','fCmd','fLegal'].forEach(i=>$(i).onchange=()=>runSearch(false));
 $('fCi').onclick=e=>{const b=e.target.closest('[data-ci]');if(!b)return;const c=b.dataset.ci;selCi.has(c)?selCi.delete(c):selCi.add(c);b.classList.toggle('on');runSearch(false)};
 $('impBtn').onclick=doImport;
+$('bq').oninput=()=>{clearTimeout(bqT);bqT=setTimeout(bestSearch,350)};
 $('cq').oninput=()=>{clearTimeout(cT);cT=setTimeout(collSearch,350)};
 $('collFilter').oninput=renderCollList;
 $('collImpBtn').onclick=collImport;
@@ -1192,6 +1303,12 @@ document.addEventListener('click',async e=>{
  if(act==='close'){detail=null;renderDetail();return}
  if(act==='opendeck'){const el=b.closest('[data-id]');if(el&&decks[el.dataset.id]){cur=el.dataset.id;lsSet('mtg_cur',cur);renderAll();setTab(mq.matches?'decks':'deck');window.scrollTo(0,0)}return}
  if(act==='newdeck'){$('newBtn').click();return}
+ if(act==='recmode'){setRecMode(b.dataset.m);return}
+ if(act==='besttag'){best.tag=b.dataset.tag;loadBestDeck();return}
+ if(act==='bestbud'){best.bud=b.dataset.bud;loadBestDeck();return}
+ if(act==='bestretry'){best.names.length&&(best.tags.length?loadBestDeck():pickBest(best.names));return}
+ if(act==='bestcreate'){bestCreate();return}
+ if(act==='bestpick'){if(n){const c=find(n);pickBest([c?c.n:n]);$('bqRes').innerHTML='';$('bq').value=''}return}
  if(act==='rrefresh'){loadRec(true);return}
  if(act==='rmore'){rec.shown+=30;renderRec();ensureOnce(rec.list.filter(x=>!hasKey(deckKeys(D()),x.name)).sort((x,y)=>rec.sort==='syn'?y.syn-x.syn:y.inc-x.inc).slice(0,rec.shown).map(x=>x.name)).then(renderRec);return}
  if(act==='cmark'){for(const x of needList(d))if(x.have<x.q)setOwn(x.n,x.q);renderAll();toast('Marcadas como que las tienes');return}
